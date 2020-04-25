@@ -10,7 +10,6 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import pyautogui
 
-
 class show_prediction():
 
     def __init__(self, path_to_video, path_to_csv, path_to_pickle):
@@ -331,8 +330,8 @@ class show_prediction():
 
 
 if __name__ == "__main__":
-    a = show_prediction('/home/jordan/Desktop/nihgpppipe/Annot', '/home/jordan/Desktop/nihgpppipe/Annot',
-                        '/home/jordan/Desktop/nihgpppipe/Annot')
+    a = show_prediction('/media/data_cifs/jbeck/and_nih_pipe/Annot', '/media/data_cifs/jbeck/and_nih_pipe/Annot',
+                        '/media/data_cifs/jbeck/and_nih_pipe/Annot')
     a.show_intro()
     a.load_video_organize_dir()
     last_frame = a.determine_last_frame()
