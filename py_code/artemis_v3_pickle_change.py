@@ -339,10 +339,8 @@ class show_prediction():
                 continue
         if not self.csv_file:
             if start_frame not in self.annot_pickle['frame'].values:
-                print('skip')
                 return 9
             else:
-                print('pred')
                 return 10
         most_pred = stats.mode(preds, axis=None)
         if not most_pred[0]:
