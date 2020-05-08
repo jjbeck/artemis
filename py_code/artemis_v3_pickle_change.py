@@ -273,8 +273,8 @@ class show_prediction():
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
                     self.loop_video((self.start_frame + interval))
-                frame_pred = cv2.putText(frame, "Start Frame: {}".format(self.start_frame) + "   Pred: " +
-                                         self.BEHAVIOR_LABELS[int(self.det_pred)], (100, 25),
+                frame_pred = cv2.putText(frame, "Current: Frame" + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
+                                         self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
@@ -283,6 +283,10 @@ class show_prediction():
                 cv2.waitKey(int(100 / 24))
             else:
                 if self.annotating == True:
+                    frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
+                                             cv2.FONT_HERSHEY_DUPLEX, 0.75,
+                                             (60, 76, 231), 1, cv2.LINE_AA)
+                    cv2.imshow('image', frame)
                     k = cv2.waitKey(100)
                     ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
                     title_image2 = cv2.putText(ndarray, "What was the behavior?",
