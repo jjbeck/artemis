@@ -23,6 +23,7 @@ class show_prediction():
         :param path_to_csv:
         :param path_to_pickle:
         """
+        self.back = False
         self.screen_width = pyautogui.size()[0]
         self.screen_height = pyautogui.size()[1]
         self.inst_loc = [int(self.screen_width / 2), 0]
@@ -78,10 +79,17 @@ class show_prediction():
                                    (20, 300), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
         title_image4 = cv2.putText(ndarray, "If multiple behaviors in loop, do not annotate!",
-                                   (20, 500), self.font,
+                                   (20, 400), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
         title_image4 = cv2.putText(ndarray, "If there is CSV file MAKE SURE TO PICK THE SAME CSV AND VIDEO FILE!",
-                                   (20, 550), self.font,
+                                   (20, 450), self.font,
+                                   0.7, (255, 255, 255), 1, cv2.LINE_AA)
+        title_image4 = cv2.putText(ndarray, "ONCE YOU SAVE PICKLE FILE, YOU CAN'T CHANGE ANNOTATIONS.",
+                                   (20, 500), self.font,
+                                   0.7, (255, 255, 255), 1, cv2.LINE_AA)
+        title_image4 = cv2.putText(ndarray,
+                                   "MAKE SURE THEY ARE CORRECT BEFORE SAVE!",
+                                   (20, 525), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.namedWindow("Directions")
         cv2.moveWindow("Directions", self.inst_loc[0], self.inst_loc[1])
@@ -156,9 +164,9 @@ class show_prediction():
                                                  prompt="What bootstrap round is this?:")
             self.pickle_path = self.path_to_pickle + "/pickle_files"
 
-        self.csv_file = askopenfilename(initialdir="/home/jordan/Desktop/nihgpppipe/Annot/csv_not_done",
+        self.csv_file = askopenfilename(initialdir= self.path_to_csv + "/csv_not_done",
                                         title="Select CSV file")  # show an "Open" dialog box and return the path to the selected file
-        self.video_file = askopenfilename(initialdir="/home/jordan/Desktop/nihgpppipe/Annot/videos_not_done",
+        self.video_file = askopenfilename(initialdir=self.path_to_video + "/videos_not_done",
                                           title="Select VIDEO file")
         if self.csv_file:
             self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
@@ -261,6 +269,7 @@ class show_prediction():
         :return:
         Appends annotation to pandas dataframe
         """
+
         self.start_frame = (start_frame)
         self.end_frame = self.start_frame + (interval)
         self.made_pred = True
@@ -273,7 +282,7 @@ class show_prediction():
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
                     self.loop_video((self.start_frame + interval))
-                frame_pred = cv2.putText(frame, "Current: Frame" + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
+                frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
@@ -305,6 +314,8 @@ class show_prediction():
                     if k & 0xFF == ord('0'):
                         self.det_pred = int(chr(k))
                         self.update_annotations()
+                        self.forward = False
+                        self.back = False
                         self.loop_video((self.start_frame + interval))
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
@@ -314,17 +325,23 @@ class show_prediction():
                     elif k & 0xFF == ord(' '):
                         self.loop_video(self.start_frame)
                     elif k & 0xFF == ord('Q'):
+                        self.back = True
                         self.loop_video(self.start_frame - interval)
                     elif k & 0xFF == ord('S'):
+                        self.forward = True
                         self.loop_video((self.start_frame + interval))
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
                             '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
                         self.det_pred = int(chr(k))
                         self.update_annotations()
+                        self.forward = False
+                        self.back = False
                         self.loop_video((self.start_frame + interval))
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
+                        self.forward = False
+                        self.back = False
                         self.loop_video((self.start_frame + interval))
 
     def determine_prediction(self, start_frame, stop_frame):
@@ -335,14 +352,22 @@ class show_prediction():
         :return:
         Mode of predictions over specific interval. This is displayed on video
         """
+
         preds = []
+
         for pred in np.arange(start_frame, stop_frame + 1):
             try:
                 preds.append(self.pred_dict[pred])
             except:
                 continue
         if not self.csv_file:
-            if start_frame not in self.annot_pickle['frame'].values:
+            if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data['frame'].values:
+                return 9
+            elif self.back == True:
+                print('back')
+                a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
+                return list(self.BEHAVIOR_LABELS.keys())[list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
+            elif self.forward == True:
                 return 9
             else:
                 return 10
@@ -360,8 +385,15 @@ class show_prediction():
         pandas data frame with columns [frame, pred]
         """
         for frame in np.arange(self.start_frame,self.end_frame):
-            self.annot_data = self.annot_data.append(
-                {'frame': frame, 'pred': self.BEHAVIOR_LABELS[int(self.det_pred)]}, ignore_index=True)
+            if self.back == False:
+                self.annot_data = self.annot_data.append(
+                    {'frame': frame, 'pred': self.BEHAVIOR_LABELS[int(self.det_pred)]}, ignore_index=True)
+                print('noback')
+            else:
+                self.annot_data.loc[self.annot_data['frame'] == frame, 'pred'] = self.BEHAVIOR_LABELS[int(self.det_pred)]
+                print("back")
+        print("done")
+
 
     def save_annotations_as_pickle(self):
         """
@@ -371,6 +403,7 @@ class show_prediction():
         """
         self.annot_pickle_final = pd.concat([self.annot_pickle, self.annot_data])
         self.annot_pickle_final.sort_values(by='frame',inplace=True)
+        self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
         if self.test_or_train == 'test':
             self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
             a = pd.read_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
@@ -417,8 +450,8 @@ class show_prediction():
             elif j == ord('s'):
                 sys.exit()
 if __name__ == "__main__":
-    a = show_prediction('/home/jordan/Desktop/nihgpppipe/Annot', '/home/jordan/Desktop/nihgpppipe/Annot',
-                        '/home/jordan/Desktop/nihgpppipe/Annot')
+    a = show_prediction('/home/jordan/Desktop/andrew_nih/Annot', '/home/jordan/Desktop/andrew_nih/Annot',
+                        '/home/jordan/Desktop/andrew_nih/Annot')
     a.show_intro()
     a.load_video_organize_dir()
     last_frame = a.determine_last_frame()
