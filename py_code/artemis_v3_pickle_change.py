@@ -259,7 +259,7 @@ class show_prediction():
 
         return self.start
 
-    def loop_video(self, start_frame=80, interval=100):
+    def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
         """
         Loops over video with gui. This is where you update or confirm annotations.
         :param start_frame:
@@ -279,7 +279,8 @@ class show_prediction():
                 ret, frame = self.cap.read()
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
-                    self.loop_video((self.start_frame + interval))
+                    print("Frames already annotated in last save. Continuing to next interval ")
+                    self.loop_video((self.start_frame + interval), interval)
                 frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
@@ -287,7 +288,7 @@ class show_prediction():
                 cv2.namedWindow('image')
                 cv2.moveWindow('image', 0, 0)
                 cv2.imshow('image', frame)
-                cv2.waitKey(int(100 / 30))
+                cv2.waitKey(int((1 / (interval * playback_speed))*1000))
             else:
                 if self.annotating == True:
                     frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
@@ -314,20 +315,20 @@ class show_prediction():
                         self.update_annotations()
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval))
+                        self.loop_video((self.start_frame + interval), interval, playback_speed)
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
                         cv2.destroyAllWindows()
                         self.det_pred = None
                         self.save_annotations_as_pickle()
                     elif k & 0xFF == ord(' '):
-                        self.loop_video(self.start_frame)
+                        self.loop_video(self.start_frame, interval, playback_speed)
                     elif k & 0xFF == ord('Q'):
                         self.back = True
-                        self.loop_video(self.start_frame - interval)
+                        self.loop_video(self.start_frame - interval, interval, playback_speed)
                     elif k & 0xFF == ord('S'):
                         self.forward = True
-                        self.loop_video((self.start_frame + interval))
+                        self.loop_video((self.start_frame + interval), interval, playback_speed)
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
                             '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
@@ -335,12 +336,12 @@ class show_prediction():
                         self.update_annotations()
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval))
+                        self.loop_video((self.start_frame + interval), interval, playback_speed)
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval))
+                        self.loop_video((self.start_frame + interval), interval, playback_speed)
 
     def determine_prediction(self, start_frame, stop_frame):
         """
@@ -450,16 +451,19 @@ def main():
     parser = argparse.ArgumentParser(description="Add main path and frame length for video loop")
     parser.add_argument("-mp", "-main_path", default = home_dir, help="Directory where you want all files associated with artemis saved: default is home directory")
     parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100, help="number of frames to analyze in each loop: default is 100 frames")
+    parser.add_argument("-ps", "-playback_speed", const=1, type=float, nargs="?", default=1,
+                        help="playback speed of interval. Higher number speeds up playback. Lower number slows playback ")
     args = parser.parse_args()
-    return args.mp, args.f
+    return args.mp, args.f, args.ps
 
 
 if __name__ == "__main__":
-    mp, f = main()
+    mp, f, ps = main()
+    print(f)
     artemis = show_prediction(mp)
     artemis.show_intro()
     artemis.load_video_organize_dir()
-    artemis.loop_video(artemis.determine_last_frame(), f)
+    artemis.loop_video(artemis.determine_last_frame(), f, ps)
 
 
 #add messages for esceptions
