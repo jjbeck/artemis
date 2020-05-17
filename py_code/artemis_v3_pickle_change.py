@@ -9,28 +9,26 @@ import tkinter as tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import pyautogui
-import pickle
+import argparse
+
 
 class show_prediction():
 
-    def __init__(self, path_to_video, path_to_csv, path_to_pickle):
+    def __init__(self, main_path):
         """
         Initialize variables for script and dictionary with
         keys to behavior label. You can set up this
         dictionary however you like - pickle file with save
         keys to frame, while values will be displayed on video.
-        :param path_to_video:
-        :param path_to_csv:
-        :param path_to_pickle:
+        :param main_path:
+       :
         """
         self.back = False
         self.screen_width = pyautogui.size()[0]
         self.screen_height = pyautogui.size()[1]
         self.inst_loc = [int(self.screen_width / 2), 0]
-        self.path_to_video = path_to_video
-        self.path_to_csv = path_to_csv
-        self.path_to_pickle = path_to_pickle
-        os.chdir(self.path_to_csv)
+        self.main_path = main_path
+        os.chdir(self.main_path)
         self.font = cv2.FONT_HERSHEY_COMPLEX
         self.BEHAVIOR_LABELS = {
             0: "drink",
@@ -114,13 +112,13 @@ class show_prediction():
         Camera object
         """
         try:
-            os.mkdir(self.path_to_video + '/videos_done')
+            os.mkdir(self.main_path + '/videos_done')
         except:
             pass
         try:
-            os.mkdir(self.path_to_video + '/videos_not_done')
+            os.mkdir(self.main_path + '/videos_not_done')
         except:
-            if len(os.listdir(self.path_to_video + '/videos_not_done')) == 0:
+            if len(os.listdir(self.main_path + '/videos_not_done')) == 0:
                 ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
                 title_image4 = cv2.putText(ndarray, "Folder empty: transfer videos to folder. Press ESC.",
                                            (20, 400), self.font,
@@ -131,9 +129,9 @@ class show_prediction():
                     sys.exit()
             pass
         try:
-            os.mkdir(self.path_to_csv + '/csv_not_done')
+            os.mkdir(self.main_path + '/csv_not_done')
         except:
-            if len(os.listdir(self.path_to_csv + '/csv_not_done')) == 0:
+            if len(os.listdir(self.main_path + '/csv_not_done')) == 0:
                 ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
                 title_image4 = cv2.putText(ndarray, "Folder empty: transfer csv to folder. Press ESC.",
                                            (20, 400), self.font,
@@ -144,12 +142,12 @@ class show_prediction():
                     sys.exit()
             pass
         try:
-            os.mkdir(self.path_to_csv + '/csv_done')
+            os.mkdir(self.main_path + '/csv_done')
         except:
             pass
         try:
-            os.mkdir(self.path_to_pickle + '/pickle_files/train')
-            os.mkdir(self.path_to_pickle + '/pickle_files/test')
+            os.mkdir(self.main_path + '/pickle_files/train')
+            os.mkdir(self.main_path + '/pickle_files/test')
         except:
             pass
         root = tk.Tk()
@@ -157,16 +155,16 @@ class show_prediction():
         self.test_or_train = simpledialog.askstring(title="Test",
                                                  prompt="Add annotations to test or train dataset:")
         if self.test_or_train == 'test':
-            self.pickle_path = self.path_to_pickle + "/pickle_files"
+            self.pickle_path = self.main_path + "/pickle_files"
             pass
         else:
-            self.boot_round = simpledialog.askstring(title="Test",
+            self.boot_round = simpledialog.askstring(title="Train",
                                                  prompt="What bootstrap round is this?:")
-            self.pickle_path = self.path_to_pickle + "/pickle_files"
+            self.pickle_path = self.main_path + "/pickle_files"
 
-        self.csv_file = askopenfilename(initialdir= self.path_to_csv + "/csv_not_done",
+        self.csv_file = askopenfilename(initialdir= self.main_path + "/csv_not_done",
                                         title="Select CSV file")  # show an "Open" dialog box and return the path to the selected file
-        self.video_file = askopenfilename(initialdir=self.path_to_video + "/videos_not_done",
+        self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
                                           title="Select VIDEO file")
         if self.csv_file:
             self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
@@ -289,7 +287,7 @@ class show_prediction():
                 cv2.namedWindow('image')
                 cv2.moveWindow('image', 0, 0)
                 cv2.imshow('image', frame)
-                cv2.waitKey(int(100 / 24))
+                cv2.waitKey(int(100 / 30))
             else:
                 if self.annotating == True:
                     frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
@@ -364,7 +362,6 @@ class show_prediction():
             if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data['frame'].values:
                 return 9
             elif self.back == True:
-                print('back')
                 a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
                 return list(self.BEHAVIOR_LABELS.keys())[list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
             elif self.forward == True:
@@ -388,11 +385,8 @@ class show_prediction():
             if self.back == False:
                 self.annot_data = self.annot_data.append(
                     {'frame': frame, 'pred': self.BEHAVIOR_LABELS[int(self.det_pred)]}, ignore_index=True)
-                print('noback')
             else:
                 self.annot_data.loc[self.annot_data['frame'] == frame, 'pred'] = self.BEHAVIOR_LABELS[int(self.det_pred)]
-                print("back")
-        print("done")
 
 
     def save_annotations_as_pickle(self):
@@ -444,20 +438,35 @@ class show_prediction():
             j = cv2.waitKey(0)
             if j == ord('m'):
                 os.rename(self.video_file,
-                          self.path_to_video + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
-                os.rename(self.csv_file, self.path_to_csv + '/csv_done' + self.csv_file[self.csv_file.rfind('/'):])
+                          self.main_path + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
+                os.rename(self.csv_file, self.main_path + '/csv_done' + self.csv_file[self.csv_file.rfind('/'):])
                 sys.exit()
             elif j == ord('s'):
                 sys.exit()
-if __name__ == "__main__":
-    a = show_prediction('/home/jordan/Desktop/andrew_nih/Annot', '/home/jordan/Desktop/andrew_nih/Annot',
-                        '/home/jordan/Desktop/andrew_nih/Annot')
-    a.show_intro()
-    a.load_video_organize_dir()
-    last_frame = a.determine_last_frame()
-    a.loop_video(last_frame)
 
-#fixed with sort, need to figure out why train always starts at 7679 (think because it is not deleting first couple frames) - drop duplicates and add frame 7678 to annot_pickle
+def main():
+    home_dir = os.environ['HOME']
+
+    parser = argparse.ArgumentParser(description="Add main path and frame length for video loop")
+    parser.add_argument("-mp", "-main_path", default = home_dir, help="Directory where you want all files associated with artemis saved: default is home directory")
+    parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100, help="number of frames to analyze in each loop: default is 100 frames")
+    args = parser.parse_args()
+    return args.mp, args.f
+
+
+if __name__ == "__main__":
+    mp, f = main()
+    artemis = show_prediction(mp)
+    artemis.show_intro()
+    artemis.load_video_organize_dir()
+    artemis.loop_video(artemis.determine_last_frame(), f)
+
+
 #add messages for esceptions
 #cut down onf code
+
+#arguents to add for commercialization
+#1. ability to pass txt file with labels and numbers for annotations (screen input changes with this)
+#2. ability to start back up with same configurations as last analysis time (cvs/nocsv, and video)
+
 
