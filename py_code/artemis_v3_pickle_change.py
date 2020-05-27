@@ -28,7 +28,7 @@ class show_prediction():
         self.screen_height = pyautogui.size()[1]
         self.inst_loc = [int(self.screen_width / 2), 0]
         self.main_path = main_path
-        os.chdir(self.main_path)
+
         self.font = cv2.FONT_HERSHEY_COMPLEX
         self.BEHAVIOR_LABELS = {
             0: "drink",
@@ -112,11 +112,12 @@ class show_prediction():
         Camera object
         """
         try:
-            os.mkdir(self.main_path + '/videos_done')
+            os.makedirs(self.main_path + '/videos_done')
         except:
             pass
         try:
-            os.mkdir(self.main_path + '/videos_not_done')
+            os.makedirs(self.main_path + '/videos_not_done')
+
         except:
             if len(os.listdir(self.main_path + '/videos_not_done')) == 0:
                 ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
@@ -128,8 +129,9 @@ class show_prediction():
                     cv2.destroyAllWindows()
                     sys.exit()
             pass
+
         try:
-            os.mkdir(self.main_path + '/csv_not_done')
+            os.makedirs(self.main_path + '/csv_not_done')
         except:
             if len(os.listdir(self.main_path + '/csv_not_done')) == 0:
                 ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
@@ -142,12 +144,12 @@ class show_prediction():
                     sys.exit()
             pass
         try:
-            os.mkdir(self.main_path + '/csv_done')
+            os.makedirs(self.main_path + '/csv_done')
         except:
             pass
         try:
-            os.mkdir(self.main_path + '/pickle_files/train')
-            os.mkdir(self.main_path + '/pickle_files/test')
+            os.makedirs(self.main_path + '/pickle_files/train')
+            os.makedirs(self.main_path + '/pickle_files/test')
         except:
             pass
         root = tk.Tk()
@@ -459,11 +461,12 @@ def main():
 if __name__ == "__main__":
     mp, f, ps = main()
     mp = mp + "Annot"
+    print(mp)
     try:
         artemis = show_prediction(mp)
     except:
         print("Need to add main path where CSV,video and pickle files will be held.\n"
-              "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
+             "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
               "Use -mp followed by path when calling script in terminal.")
         sys.exit(1)
     artemis.show_intro()
