@@ -458,8 +458,9 @@ def main():
 
 if __name__ == "__main__":
     mp, f, ps = main()
+    mp = mp + "Annot"
     try:
-        artemis = show_prediction(mp + "Annot")
+        artemis = show_prediction(mp)
     except:
         print("Need to add main path where CSV,video and pickle files will be held.\n"
               "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
