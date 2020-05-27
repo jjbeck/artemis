@@ -459,7 +459,6 @@ def main():
 
 if __name__ == "__main__":
     mp, f, ps = main()
-    os.environ['Display'] = ':0'
     artemis = show_prediction(mp)
     artemis.show_intro()
     artemis.load_video_organize_dir()
