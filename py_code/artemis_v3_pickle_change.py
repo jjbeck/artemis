@@ -446,20 +446,25 @@ class show_prediction():
                 sys.exit()
 
 def main():
-    home_dir = os.environ['HOME']
 
     parser = argparse.ArgumentParser(description="Add main path and frame length for video loop")
-    parser.add_argument("-mp", "-main_path", default = home_dir, help="Directory where you want all files associated with artemis saved: default is home directory")
+    parser.add_argument("-mp", "-main_path", help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
+                                                  "Different experiments can be housed in separate folders under different Annot folder")
     parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100, help="number of frames to analyze in each loop: default is 100 frames")
     parser.add_argument("-ps", "-playback_speed", const=1, type=float, nargs="?", default=1,
                         help="playback speed of interval. Higher number speeds up playback. Lower number slows playback ")
     args = parser.parse_args()
     return args.mp, args.f, args.ps
 
-
 if __name__ == "__main__":
     mp, f, ps = main()
-    artemis = show_prediction(mp)
+    try:
+        artemis = show_prediction(mp + "Annot")
+    except:
+        print("Need to add main path where CSV,video and pickle files will be held.\n"
+              "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
+              "Use -mp followed by path when calling script in terminal.")
+        sys.exit(1)
     artemis.show_intro()
     artemis.load_video_organize_dir()
     artemis.loop_video(artemis.determine_last_frame(), f, ps)
