@@ -459,18 +459,17 @@ def main():
 
 if __name__ == "__main__":
     mp, f, ps = main()
-    print(f)
+    os.environ['Display'] = ':0'
     artemis = show_prediction(mp)
     artemis.show_intro()
     artemis.load_video_organize_dir()
     artemis.loop_video(artemis.determine_last_frame(), f, ps)
 
-
+#add print statements for terminal to add fail safe for analyzing how pickle files are saved. Do this with d-bug to check first on (no_csv, pickle, video) then expand for other options
 #add messages for esceptions
 #cut down onf code
 
 #arguents to add for commercialization
-#1. ability to pass txt file with labels and numbers for annotations (screen input changes with this)
 #2. ability to start back up with same configurations as last analysis time (cvs/nocsv, and video)
 
 
