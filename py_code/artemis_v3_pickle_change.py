@@ -156,21 +156,24 @@ class show_prediction():
         root.withdraw()
         self.test_or_train = simpledialog.askstring(title="Test",
                                                  prompt="Add annotations to test or train dataset:")
-        if self.test_or_train == 'test':
-            self.pickle_path = self.main_path + "/pickle_files"
-            pass
-        else:
-            self.boot_round = simpledialog.askstring(title="Train",
+
+        self.boot_round = simpledialog.askstring(title="Train",
                                                  prompt="What bootstrap round is this?:")
-            self.pickle_path = self.main_path + "/pickle_files"
+        self.pickle_path = self.main_path + "/pickle_files"
 
         self.csv_file = askopenfilename(initialdir= self.main_path + "/csv_not_done",
                                         title="Select CSV file")  # show an "Open" dialog box and return the path to the selected file
         self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
                                           title="Select VIDEO file")
+
         if self.csv_file:
             self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
         self.cap = cv2.VideoCapture(self.video_file)
+
+        self.video_length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        frame_arr = np.arange(80,(self.video_length+1))
+        self.total_frames = pd.DataFrame(data=frame_arr, columns=['frame'])
 
     def determine_last_frame(self):
         """
@@ -195,26 +198,21 @@ class show_prediction():
         try:
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
             self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
-            common = self.predictions.merge(self.exp_frames_analyzed, on=['frame'])
-            self.non_analyzed_frames = self.predictions[(~self.predictions.frame.isin(common.frame))]
-            self.non_analyzed_frames.drop_duplicates(subset=['frame'])
-            self.non_analyzed_frames.sort_values(by='frame', inplace=True)
-            self.pred_dict = pd.Series(self.non_analyzed_frames.pred.values,
-                                       index=self.non_analyzed_frames.frame).to_dict()
-            self.prediction_state = True
+            self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed]).drop_duplicates(subset=['frame'],keep=False)
+
         except:
+            self.non_analyzed_frames = self.total_frames
             pass
         try:
-            if self.prediction_state == False:
-                self.pred_dict = pd.Series(self.predictions.pred.values, index=self.predictions.frame).to_dict()
-                self.prediction_state = True
+            self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
+            self.prediction_state = True
         except:
             pass
 
         if self.test_or_train == 'test':
             try:
                 self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
                 self.annot_pickle.sort_values(by='frame',inplace=True)
                 self.annot_pickle.drop_duplicates(subset=['frame'])
                 pickl_pres = True
@@ -222,19 +220,6 @@ class show_prediction():
                 self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
                 pickl_pres = False
                 pass
-            if pickl_pres == True:
-                try:
-                    self.start = (self.non_analyzed_frames['frame'].iloc[0])
-                except:
-                    a = self.annot_pickle['frame'].iloc[0]
-                    for row, index in self.annot_pickle.iterrows():
-                        if index['frame'] - a > 1:
-                            self.start = a + 1
-                            break
-                        a = index['frame']
-                        self.start = self.annot_pickle['frame'].iloc[-1] + 1
-            if pickl_pres == False:
-                self.start = 80
         else:
             try:
                 self.annot_pickle = pd.read_pickle(
@@ -246,20 +231,8 @@ class show_prediction():
                 self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
                 pickl_pres = False
                 pass
-            if pickl_pres == True:
-                try:
-                    self.start = (self.non_analyzed_frames['frame'].iloc[0])
-                except:
-                    a = self.annot_pickle['frame'].iloc[0]
-                    for row, index in self.annot_pickle.iterrows():
-                        if index['frame'] - a > 1:
-                            self.start = a + 1
-                            break
-                        a = index['frame']
-            if pickl_pres == False:
-                self.start = 80
-
-        return self.start
+        self_start = (self.non_analyzed_frames['frame'].iloc[0])
+        return  self_start
 
     def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
         """
@@ -345,7 +318,7 @@ class show_prediction():
                         self.back = False
                         self.loop_video((self.start_frame + interval), interval, playback_speed)
 
-    def determine_prediction(self, start_frame, stop_frame):
+    def     determine_prediction(self, start_frame, stop_frame):
         """
         Determines prediction over specific interval of video.
         :param start_frame:
@@ -402,8 +375,8 @@ class show_prediction():
         self.annot_pickle_final.sort_values(by='frame',inplace=True)
         self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
         if self.test_or_train == 'test':
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
-            a = pd.read_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
+            a = pd.read_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
             print(a)
         else:
             self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
@@ -459,6 +432,7 @@ def main():
     return args.mp, args.f, args.ps
 
 if __name__ == "__main__":
+    """
     mp, f, ps = main()
     mp = mp + "Annot"
     print(mp)
@@ -469,15 +443,19 @@ if __name__ == "__main__":
              "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
               "Use -mp followed by path when calling script in terminal.")
         sys.exit(1)
+    """
+    artemis = show_prediction('/home/jordan/Desktop/andrew_nih/Annot')
     artemis.show_intro()
     artemis.load_video_organize_dir()
-    artemis.loop_video(artemis.determine_last_frame(), f, ps)
+    artemis.loop_video(artemis.determine_last_frame(), 100, 1)
 
-#add print statements for terminal to add fail safe for analyzing how pickle files are saved. Do this with d-bug to check first on (no_csv, pickle, video) then expand for other options
+#add ability to go back and forward if csv is present! Along this, make it so it skips frame is in EXP FRAMES ANALYZED!!!!!!
+#add fail safe for analyzing how pickle files are saved. Do this with d-bug to check first on (no_csv, pickle, video) then expand for other options
 #add messages for esceptions
 #cut down onf code
 
 #arguents to add for commercialization
 #2. ability to start back up with same configurations as last analysis time (cvs/nocsv, and video)
+
 
 
