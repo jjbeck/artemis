@@ -10,11 +10,13 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import pyautogui
 import argparse
+import yaml
+from collections import defaultdict
 
 
 class show_prediction():
 
-    def __init__(self, main_path):
+    def __init__(self, main_path, boot_round, new_annot):
         """
         Initialize variables for script and dictionary with
         keys to behavior label. You can set up this
@@ -28,8 +30,9 @@ class show_prediction():
         self.screen_height = pyautogui.size()[1]
         self.inst_loc = [int(self.screen_width / 2), 0]
         self.main_path = main_path
-
+        self.boot_round = boot_round
         self.font = cv2.FONT_HERSHEY_COMPLEX
+        self.new_annot = new_annot
         self.BEHAVIOR_LABELS = {
             0: "drink",
             2: "groom",
@@ -157,8 +160,6 @@ class show_prediction():
         self.test_or_train = simpledialog.askstring(title="Test",
                                                  prompt="Add annotations to test or train dataset:")
 
-        self.boot_round = simpledialog.askstring(title="Train",
-                                                 prompt="What bootstrap round is this?:")
         self.pickle_path = self.main_path + "/pickle_files"
 
         self.csv_file = askopenfilename(initialdir= self.main_path + "/csv_not_done",
@@ -203,6 +204,7 @@ class show_prediction():
         except:
             self.non_analyzed_frames = self.total_frames
             pass
+        print(f"You have analyzed {self.frames_analyzed} frames of this video so far")
         try:
             self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
             self.prediction_state = True
@@ -232,6 +234,8 @@ class show_prediction():
                 pickl_pres = False
                 pass
         self_start = (self.non_analyzed_frames['frame'].iloc[0])
+        print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
+
         return  self_start
 
     def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
@@ -242,7 +246,8 @@ class show_prediction():
         :return:
         Appends annotation to pandas dataframe
         """
-
+        print(f"You have analyzed {len(self.annot_data)} frames in this session")
+        print(self.annot_data)
         self.start_frame = (start_frame)
         self.end_frame = self.start_frame + (interval)
         self.made_pred = True
@@ -389,6 +394,86 @@ class show_prediction():
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
         """
+        update_beh = []
+        test_update_beh = []
+        update_params = {}
+        test_update_params = {}
+        boot_update_params = {}
+        final_test = {}
+        experiments = []
+        test_experiments = []
+        for file in glob.glob(self.pickle_path + "/train/*"):
+            self.annot_pickle = pd.read_pickle(file)
+            self.annot_pickle.sort_values(by='frame',inplace=True)
+            update_beh.append(self.annot_pickle)
+            file = file[file.rfind('/')+1:]
+            experiments.append(file[:file.find('_')])
+        for file in glob.glob(self.pickle_path + "/test/*"):
+            self.annot_pickle = pd.read_pickle(file)
+            self.annot_pickle.sort_values(by='frame',inplace=True)
+            test_update_beh.append(self.annot_pickle)
+            file = file[file.rfind('/')+1:]
+            test_experiments.append(file[:file.find('_')])
+
+        print(test_experiments)
+
+        for i in np.arange(0,len(update_beh)):
+            beh_total = {"drink": 0,
+                         "groom": 0,
+                         "eat": 0,
+                         "hang": 0,
+                         "sniff": 0,
+                         "rear": 0,
+                         "rest": 0,
+                         "walk": 0,
+                         "eathand": 0,
+                         "none": 0}
+            behavior_count = update_beh[i]["pred"].value_counts().to_dict()
+
+            for key in behavior_count.keys():
+                beh_total[key] += behavior_count[key]
+
+            if experiments[i] in update_params:
+                for key in beh_total.keys():
+                    update_params[experiments[i]][key] += beh_total[key]
+            else:
+                update_params[experiments[i]] = beh_total
+
+        for i in np.arange(0,len(test_update_beh)):
+            test_total = {"drink": 0,
+                          "groom": 0,
+                          "eat": 0,
+                          "hang": 0,
+                          "sniff": 0,
+                          "rear": 0,
+                          "rest": 0,
+                          "walk": 0,
+                          "eathand": 0,
+                          "none": 0}
+
+            test_count = test_update_beh[i]["pred"].value_counts().to_dict()
+
+            for key_test in test_count.keys():
+                test_total[key_test] += test_count[key_test]
+
+            if test_experiments[i] in test_update_params:
+                for key in beh_total.keys():
+                    test_update_params[test_experiments[i]][key_test] += test_total[key_test]
+            else:
+                test_update_params[test_experiments[i]] = test_total
+
+        config_param = {"Boot Round": self.boot_round, "Main Path": self.main_path}
+        boot_update_params["Number of behaviors for Boot {}".format(self.boot_round)] = update_params
+        final_test["Number of behaviors for Test Set"] = test_update_params
+
+
+        with open(self.main_path+"/config.yaml", 'w') as file:
+            documents = yaml.dump(config_param, file)
+            documents = yaml.dump(final_test,file)
+            documents = yaml.dump(boot_update_params,file)
+
+        file.close()
+
         frame_total = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         try:
             self.frames_analyzed.append(len(self.annot_data.index))
@@ -432,25 +517,28 @@ def main():
     return args.mp, args.f, args.ps
 
 if __name__ == "__main__":
-    """
+
     mp, f, ps = main()
     mp = mp + "Annot"
-    print(mp)
-    try:
-        artemis = show_prediction(mp)
-    except:
-        print("Need to add main path where CSV,video and pickle files will be held.\n"
-             "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
-              "Use -mp followed by path when calling script in terminal.")
-        sys.exit(1)
-    """
-    artemis = show_prediction('/home/jordan/Desktop/andrew_nih/Annot')
+    if os.path.exists(mp + "/config.yaml"):
+        with open(mp + "/config.yaml") as file:
+            config_param = yaml.load(file, Loader=yaml.FullLoader)
+            file.close()
+            try:
+                artemis = show_prediction(mp,config_param["Boot Round"],False)
+            except:
+                print("Need to add main path where CSV,video and pickle files will be held.\n"
+                      "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
+                      "Use -mp followed by path when calling script in terminal.")
+                sys.exit(1)
+    else:
+        artemis = show_prediction(mp, 1,True)
+
     artemis.show_intro()
     artemis.load_video_organize_dir()
-    artemis.loop_video(artemis.determine_last_frame(), 100, 1)
+    artemis.loop_video(artemis.determine_last_frame(), f, ps)
 
-#add ability to go back and forward if csv is present! Along this, make it so it skips frame is in EXP FRAMES ANALYZED!!!!!!
-#add fail safe for analyzing how pickle files are saved. Do this with d-bug to check first on (no_csv, pickle, video) then expand for other options
+#Work on appending to config.yaml from bootstrap code side!
 #add messages for esceptions
 #cut down onf code
 
