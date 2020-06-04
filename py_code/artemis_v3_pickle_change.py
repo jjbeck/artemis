@@ -8,7 +8,6 @@ import os
 import tkinter as tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
-import pyautogui
 import argparse
 import yaml
 from collections import defaultdict
@@ -26,9 +25,6 @@ class show_prediction():
        :
         """
         self.back = False
-        self.screen_width = pyautogui.size()[0]
-        self.screen_height = pyautogui.size()[1]
-        self.inst_loc = [int(self.screen_width / 2), 0]
         self.main_path = main_path
         self.boot_round = boot_round
         self.font = cv2.FONT_HERSHEY_COMPLEX
@@ -93,7 +89,6 @@ class show_prediction():
                                    (20, 525), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.namedWindow("Directions")
-        cv2.moveWindow("Directions", self.inst_loc[0], self.inst_loc[1])
         cv2.imshow("Directions", ndarray)
         while ready == False:
             if cv2.waitKey(0) == ord(' '):
@@ -281,7 +276,6 @@ class show_prediction():
                                                (20, 250), self.font,
                                                0.7, (255, 255, 255), 1, cv2.LINE_AA)
                     cv2.namedWindow("Ins1")
-                    cv2.moveWindow("Ins1", self.inst_loc[0], self.inst_loc[1])
                     cv2.imshow("Ins1", ndarray)
                     k = cv2.waitKey(0)
                     if k & 0xFF == ord('0'):
@@ -478,7 +472,6 @@ class show_prediction():
                                    (20, 250), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.namedWindow("Ins3")
-        cv2.moveWindow("Ins3", self.inst_loc[0], self.inst_loc[1])
         cv2.imshow("Ins3", ndarray2)
         while True:
             j = cv2.waitKey(0)
