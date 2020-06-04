@@ -115,7 +115,7 @@ class show_prediction():
         Camera object
         """
         try:
-            os.makedirs(self.main_path + '/videos_done')
+            os.makedirs(self.main_path + "/videos_to_analyze")
         except:
             pass
         try:
@@ -145,10 +145,6 @@ class show_prediction():
                 if cv2.waitKey(0) == ord('\x1b'):
                     cv2.destroyAllWindows()
                     sys.exit()
-            pass
-        try:
-            os.makedirs(self.main_path + '/csv_done')
-        except:
             pass
         try:
             os.makedirs(self.main_path + '/pickle_files/train')
@@ -199,12 +195,11 @@ class show_prediction():
         try:
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
             self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
-            self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed]).drop_duplicates(subset=['frame'],keep=False)
+            self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed],sort=True).drop_duplicates(subset=['frame'],keep=False)
 
         except:
             self.non_analyzed_frames = self.total_frames
             pass
-        print(f"You have analyzed {self.frames_analyzed} frames of this video so far")
         try:
             self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
             self.prediction_state = True
@@ -247,7 +242,6 @@ class show_prediction():
         Appends annotation to pandas dataframe
         """
         print(f"You have analyzed {len(self.annot_data)} frames in this session")
-        print(self.annot_data)
         self.start_frame = (start_frame)
         self.end_frame = self.start_frame + (interval)
         self.made_pred = True
@@ -381,12 +375,8 @@ class show_prediction():
         self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
         if self.test_or_train == 'test':
             self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
-            a = pd.read_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
-            print(a)
         else:
             self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
-            b = pd.read_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
-            print(b)
         self.done_with_video()
 
     def done_with_video(self):
@@ -414,8 +404,6 @@ class show_prediction():
             test_update_beh.append(self.annot_pickle)
             file = file[file.rfind('/')+1:]
             test_experiments.append(file[:file.find('_')])
-
-        print(test_experiments)
 
         for i in np.arange(0,len(update_beh)):
             beh_total = {"drink": 0,
@@ -486,9 +474,6 @@ class show_prediction():
             (analyzed_frames / frame_total) * 100),
                                    (20, 150), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
-        title_image3 = cv2.putText(ndarray2, "Press m to move data to done folder",
-                                   (20, 200), self.font,
-                                   0.7, (255, 255, 255), 1, cv2.LINE_AA)
         title_image3 = cv2.putText(ndarray2, "Press s to keep video for more analysis",
                                    (20, 250), self.font,
                                    0.7, (255, 255, 255), 1, cv2.LINE_AA)
@@ -497,12 +482,7 @@ class show_prediction():
         cv2.imshow("Ins3", ndarray2)
         while True:
             j = cv2.waitKey(0)
-            if j == ord('m'):
-                os.rename(self.video_file,
-                          self.main_path + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
-                os.rename(self.csv_file, self.main_path + '/csv_done' + self.csv_file[self.csv_file.rfind('/'):])
-                sys.exit()
-            elif j == ord('s'):
+            if j == ord('s'):
                 sys.exit()
 
 def main():
