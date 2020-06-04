@@ -255,7 +255,6 @@ class show_prediction():
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
-                cv2.moveWindow('image', 0, 0)
                 cv2.imshow('image', frame)
                 cv2.waitKey(int((1 / (interval * playback_speed))*1000))
             else:
