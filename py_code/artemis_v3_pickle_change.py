@@ -10,7 +10,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import argparse
 import yaml
-from collections import defaultdict
+
 
 
 class show_prediction():
