@@ -12,7 +12,6 @@ import argparse
 import yaml
 
 
-
 class show_prediction():
 
     def __init__(self, main_path, boot_round, new_annot):
@@ -25,6 +24,8 @@ class show_prediction():
        :
         """
         self.back = False
+        self.forward = False
+        self.random = False
         self.main_path = main_path
         self.boot_round = boot_round
         self.font = cv2.FONT_HERSHEY_COMPLEX
@@ -204,7 +205,7 @@ class show_prediction():
         if self.test_or_train == 'test':
             try:
                 self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
+                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
                 self.annot_pickle.sort_values(by='frame',inplace=True)
                 self.annot_pickle.drop_duplicates(subset=['frame'])
                 pickl_pres = True
@@ -228,6 +229,12 @@ class show_prediction():
 
         return  self_start
 
+    def choose_random_frame(self):
+        a = self.non_analyzed_frames.sample()
+        a = a["frame"]
+        a = int(a)
+        self.loop_video(a,self.interval,self.playback_speed)
+
     def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
         """
         Loops over video with gui. This is where you update or confirm annotations.
@@ -236,27 +243,29 @@ class show_prediction():
         :return:
         Appends annotation to pandas dataframe
         """
-        print(f"You have analyzed {len(self.annot_data)} frames in this session")
+
+        print(f"You have analyzed {len(self.annot_data)} frames in this session       \r",end='')
+        self.interval = interval
         self.start_frame = (start_frame)
-        self.end_frame = self.start_frame + (interval)
+        self.end_frame = self.start_frame + (self.interval)
         self.made_pred = True
+        self.playback_speed = playback_speed
         if (self.cap.isOpened() == False):
             print("Error opening video stream or file")
         self.cap.set(1, self.start_frame)
         while (self.cap.isOpened()):
-            if int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) - self.start_frame < interval:
+            if int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) - self.start_frame < self.interval:
                 ret, frame = self.cap.read()
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
-                    print("Frames already annotated in last save. Continuing to next interval ")
-                    self.loop_video((self.start_frame + interval), interval)
+                    self.loop_video((self.start_frame + self.interval), self.interval)
                 frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
                 cv2.imshow('image', frame)
-                cv2.waitKey(int((1 / (interval * playback_speed))*1000))
+                cv2.waitKey(int((1 / (self.interval * self.playback_speed))*1000))
             else:
                 if self.annotating == True:
                     frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
@@ -280,22 +289,30 @@ class show_prediction():
                     if k & 0xFF == ord('0'):
                         self.det_pred = int(chr(k))
                         self.update_annotations()
+                        self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval), interval, playback_speed)
+                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
                         cv2.destroyAllWindows()
                         self.det_pred = None
                         self.save_annotations_as_pickle()
                     elif k & 0xFF == ord(' '):
-                        self.loop_video(self.start_frame, interval, playback_speed)
+                        self.random = False
+                        self.forward = False
+                        self.back = False
+                        self.loop_video(self.start_frame, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('Q'):
                         self.back = True
-                        self.loop_video(self.start_frame - interval, interval, playback_speed)
+                        self.forward = False
+                        self.random = False
+                        self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('S'):
                         self.forward = True
-                        self.loop_video((self.start_frame + interval), interval, playback_speed)
+                        self.back = False
+                        self.random = False
+                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
                             '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
@@ -303,14 +320,24 @@ class show_prediction():
                         self.update_annotations()
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval), interval, playback_speed)
+                        self.random = False
+                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + interval), interval, playback_speed)
+                        self.random = False
+                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
 
-    def     determine_prediction(self, start_frame, stop_frame):
+                    elif k & 0xFF == ord('r'):
+                        self.random = True
+                        self.back = False
+                        self.forward = False
+                        self.choose_random_frame()
+
+
+
+    def determine_prediction(self, start_frame, stop_frame):
         """
         Determines prediction over specific interval of video.
         :param start_frame:
@@ -318,26 +345,45 @@ class show_prediction():
         :return:
         Mode of predictions over specific interval. This is displayed on video
         """
-
+        #   last thing i need to MAKE IT SO PREDICTIONS CHECKS FOR FRAME STILL IN ANALYZED FRAMES AND NOT IN PREDICTIONS
         preds = []
 
-        for pred in np.arange(start_frame, stop_frame + 1):
-            try:
-                preds.append(self.pred_dict[pred])
-            except:
-                continue
         if not self.csv_file:
             if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data['frame'].values:
                 return 9
             elif self.back == True:
                 a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
-                return list(self.BEHAVIOR_LABELS.keys())[list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
+                return list(self.BEHAVIOR_LABELS.keys())[
+                    list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
             elif self.forward == True:
                 return 9
             else:
                 return 10
+
+        if self.random == True:
+            if start_frame in self.annot_pickle['frame'].values:
+                ("random frames already annotated. Skipping")
+                return 10
+
+        for pred in np.arange(start_frame, stop_frame + 1):
+
+            if pred not in self.non_analyzed_frames['frame'].values:
+
+                continue
+
+            if self.back == True:
+                try:
+                    a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
+                    return list(self.BEHAVIOR_LABELS.keys())[
+                        list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
+                except:
+                    return 9
+            try:
+                preds.append(self.pred_dict[pred])
+            except:
+                continue
         most_pred = stats.mode(preds, axis=None)
-        if not most_pred[0]:
+        if most_pred[0].size < 1:
             return 10
         preds = []
         return int(most_pred[0])
@@ -367,7 +413,7 @@ class show_prediction():
         self.annot_pickle_final.sort_values(by='frame',inplace=True)
         self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
         if self.test_or_train == 'test':
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test{}.p'.format(self.boot_round))
+            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
         else:
             self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
         self.done_with_video()
@@ -412,7 +458,7 @@ class show_prediction():
             behavior_count = update_beh[i]["pred"].value_counts().to_dict()
 
             for key in behavior_count.keys():
-                beh_total[key] += behavior_count[key]
+                beh_total[key] += behavior_count[key]/64
 
             if experiments[i] in update_params:
                 for key in beh_total.keys():
@@ -435,11 +481,11 @@ class show_prediction():
             test_count = test_update_beh[i]["pred"].value_counts().to_dict()
 
             for key_test in test_count.keys():
-                test_total[key_test] += test_count[key_test]
+                test_total[key_test] += test_count[key_test]/64
 
             if test_experiments[i] in test_update_params:
-                for key in beh_total.keys():
-                    test_update_params[test_experiments[i]][key_test] += test_total[key_test]
+                for key_tests in test_total.keys():
+                    test_update_params[test_experiments[i]][key_tests] += test_total[key_tests]
             else:
                 test_update_params[test_experiments[i]] = test_total
 
@@ -510,7 +556,9 @@ if __name__ == "__main__":
     artemis.load_video_organize_dir()
     artemis.loop_video(artemis.determine_last_frame(), f, ps)
 
+#1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
 #Work on appending to config.yaml from bootstrap code side!
+#Figure out how to do playback when csv file is present and dsplay pred!
 #add messages for esceptions
 #cut down onf code
 
