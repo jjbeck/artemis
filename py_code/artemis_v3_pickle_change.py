@@ -10,6 +10,7 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import argparse
 import yaml
+import re
 
 
 class show_prediction():
@@ -425,26 +426,37 @@ class show_prediction():
         """
         update_beh = []
         test_update_beh = []
-        update_params = {}
-        test_update_params = {}
+        ver_update = {}
         boot_update_params = {}
         final_test = {}
         experiments = []
         test_experiments = []
+        test_vers_update = {}
+        exp_version = []
+        test_exp_version = []
         for file in glob.glob(self.pickle_path + "/train/*"):
             self.annot_pickle = pd.read_pickle(file)
             self.annot_pickle.sort_values(by='frame',inplace=True)
             update_beh.append(self.annot_pickle)
             file = file[file.rfind('/')+1:]
             experiments.append(file[:file.find('_')])
+            matches = re.finditer("_", file)
+            matches_positions = [match.start() for match in matches]
+            exp_version.append(file[matches_positions[1]+1:matches_positions[2]])
         for file in glob.glob(self.pickle_path + "/test/*"):
             self.annot_pickle = pd.read_pickle(file)
             self.annot_pickle.sort_values(by='frame',inplace=True)
             test_update_beh.append(self.annot_pickle)
             file = file[file.rfind('/')+1:]
             test_experiments.append(file[:file.find('_')])
+            matches = re.finditer("_", file)
+            matches_positions = [match.start() for match in matches]
+            test_exp_version.append(file[matches_positions[1]+1:matches_positions[2]])
+
+
 
         for i in np.arange(0,len(update_beh)):
+            update_params = {}
             beh_total = {"drink": 0,
                          "groom": 0,
                          "eat": 0,
@@ -459,14 +471,23 @@ class show_prediction():
 
             for key in behavior_count.keys():
                 beh_total[key] += behavior_count[key]/64
-
-            if experiments[i] in update_params:
-                for key in beh_total.keys():
-                    update_params[experiments[i]][key] += beh_total[key]
+            print(beh_total)
+            if exp_version[i] in ver_update:
+                if experiments[i] in ver_update[exp_version[i]]:
+                    update_params[experiments[i]] = beh_total
+                    for key_tests in update_params[experiments[i]].keys():
+                        ver_update[exp_version[i]][experiments[i]][key_tests]+=beh_total[key_tests]
+                else:
+                    ver_update[exp_version[i]][experiments[i]]={0:0}
+                    ver_update[exp_version[i]][experiments[i]] = beh_total
             else:
                 update_params[experiments[i]] = beh_total
+                ver_update[exp_version[i]] = update_params
+
 
         for i in np.arange(0,len(test_update_beh)):
+            test_update_params={}
+            test2_update = {}
             test_total = {"drink": 0,
                           "groom": 0,
                           "eat": 0,
@@ -482,16 +503,21 @@ class show_prediction():
 
             for key_test in test_count.keys():
                 test_total[key_test] += test_count[key_test]/64
-
-            if test_experiments[i] in test_update_params:
-                for key_tests in test_total.keys():
-                    test_update_params[test_experiments[i]][key_tests] += test_total[key_tests]
+            if test_exp_version[i] in test_vers_update:
+                if test_experiments[i] in test_vers_update[test_exp_version[i]]:
+                    test_update_params[test_experiments[i]] = test_total
+                    for key_tests in test_update_params[test_experiments[i]].keys():
+                        test_vers_update[test_exp_version[i]][test_experiments[i]][key_tests]+=test_total[key_tests]
+                else:
+                    test_vers_update[test_exp_version[i]][test_experiments[i]]={0:0}
+                    test_vers_update[test_exp_version[i]][test_experiments[i]] = test_total
             else:
                 test_update_params[test_experiments[i]] = test_total
+                test_vers_update[test_exp_version[i]] = test_update_params
 
         config_param = {"Boot Round": self.boot_round, "Main Path": self.main_path}
-        boot_update_params["Number of behaviors for Boot {}".format(self.boot_round)] = update_params
-        final_test["Number of behaviors for Test Set"] = test_update_params
+        boot_update_params["Number of behaviors for Boot {}".format(self.boot_round)] = ver_update
+        final_test["Number of behaviors for Test Set"] = test_vers_update
 
 
         with open(self.main_path+"/config.yaml", 'w') as file:
@@ -533,6 +559,7 @@ def main():
                         help="playback speed of interval. Higher number speeds up playback. Lower number slows playback ")
     args = parser.parse_args()
     return args.mp, args.f, args.ps
+
 
 if __name__ == "__main__":
 
