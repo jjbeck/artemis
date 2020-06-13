@@ -245,7 +245,7 @@ class show_prediction():
         Appends annotation to pandas dataframe
         """
 
-        print(f"You have analyzed {len(self.annot_data)} frames in this session       \r",end='')
+        print(f"You have analyzed {len(self.annot_data)} frames in this session\r",end="")
         self.interval = interval
         self.start_frame = (start_frame)
         self.end_frame = self.start_frame + (self.interval)
@@ -305,14 +305,11 @@ class show_prediction():
                         self.back = False
                         self.loop_video(self.start_frame, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('Q'):
+
                         self.back = True
-                        self.forward = False
-                        self.random = False
                         self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('S'):
                         self.forward = True
-                        self.back = False
-                        self.random = False
                         self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
@@ -332,9 +329,11 @@ class show_prediction():
 
                     elif k & 0xFF == ord('r'):
                         self.random = True
-                        self.back = False
-                        self.forward = False
                         self.choose_random_frame()
+
+                    elif k & 0xFF == ord('s'):
+                        self.forward = True
+                        self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
 
 
 
@@ -424,71 +423,10 @@ class show_prediction():
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
         """
-        update_beh = []
-        test_update_beh = []
-        ver_update = {}
-        boot_update_params = {}
         final_test = {}
-        experiments = []
-        test_experiments = []
         test_vers_update = {}
-        exp_version = []
-        test_exp_version = []
-        for file in glob.glob(self.pickle_path + "/train/*"):
-            self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
-            update_beh.append(self.annot_pickle)
-            file = file[file.rfind('/')+1:]
-            experiments.append(file[:file.find('_')])
-            matches = re.finditer("_", file)
-            matches_positions = [match.start() for match in matches]
-            exp_version.append(file[matches_positions[1]+1:matches_positions[2]])
         for file in glob.glob(self.pickle_path + "/test/*"):
-            self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
-            test_update_beh.append(self.annot_pickle)
-            file = file[file.rfind('/')+1:]
-            test_experiments.append(file[:file.find('_')])
-            matches = re.finditer("_", file)
-            matches_positions = [match.start() for match in matches]
-            test_exp_version.append(file[matches_positions[1]+1:matches_positions[2]])
-
-
-
-        for i in np.arange(0,len(update_beh)):
-            update_params = {}
-            beh_total = {"drink": 0,
-                         "groom": 0,
-                         "eat": 0,
-                         "hang": 0,
-                         "sniff": 0,
-                         "rear": 0,
-                         "rest": 0,
-                         "walk": 0,
-                         "eathand": 0,
-                         "none": 0}
-            behavior_count = update_beh[i]["pred"].value_counts().to_dict()
-
-            for key in behavior_count.keys():
-                beh_total[key] += behavior_count[key]/64
-            print(beh_total)
-            if exp_version[i] in ver_update:
-                if experiments[i] in ver_update[exp_version[i]]:
-                    update_params[experiments[i]] = beh_total
-                    for key_tests in update_params[experiments[i]].keys():
-                        ver_update[exp_version[i]][experiments[i]][key_tests]+=beh_total[key_tests]
-                else:
-                    ver_update[exp_version[i]][experiments[i]]={0:0}
-                    ver_update[exp_version[i]][experiments[i]] = beh_total
-            else:
-                update_params[experiments[i]] = beh_total
-                ver_update[exp_version[i]] = update_params
-
-
-        for i in np.arange(0,len(test_update_beh)):
-            test_update_params={}
-            test2_update = {}
-            test_total = {"drink": 0,
+            sample_total = {"drink": 0,
                           "groom": 0,
                           "eat": 0,
                           "hang": 0,
@@ -498,32 +436,115 @@ class show_prediction():
                           "walk": 0,
                           "eathand": 0,
                           "none": 0}
+            pred_sum = {}
+            self.annot_pickle = pd.read_pickle(file)
+            self.annot_pickle.sort_values(by='frame', inplace=True)
+            self.annot_pickle = self.annot_pickle[self.annot_pickle.pred != 'none']
+            test_beh = (self.annot_pickle)
+            file = file[file.rfind('/') + 1:]
+            test_experiment = (file[:file.find('_')])
+            matches = re.finditer("_", file)
+            matches_positions = [match.start() for match in matches]
+            test_exp_version = (file[matches_positions[1] + 1:matches_positions[2]])
 
-            test_count = test_update_beh[i]["pred"].value_counts().to_dict()
+            frame_one = self.annot_pickle['frame'].iloc[0]
+            frame_lst = self.annot_pickle['frame'].iloc[0]
+            for index, row in self.annot_pickle.iterrows():
+                if row['frame'] - frame_lst >1:
+                    if frame_lst - frame_one >= 64:
+                        pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame_one]
+                        pred_comp = pred_comp['pred'].to_string(index=False).strip()
+                        for frame in np.arange(frame_one+1, frame_lst-63):
+                            pred_lst = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                            pred_lst = pred_lst['pred'].to_string(index=False).strip()
+                            sample_total[pred_lst] += 1
+                            if pred_comp != pred_lst:
+                                if pred_comp in pred_sum:
+                                    pred_sum[pred_comp] += 1
+                                    pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                                    pred_comp = pred_comp['pred'].to_string(index=False).strip()
+                                else:
+                                    pred_sum[pred_comp] = 1
+                                    pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                                    pred_comp = pred_comp['pred'].to_string(index=False).strip()
 
-            for key_test in test_count.keys():
-                test_total[key_test] += test_count[key_test]/64
-            if test_exp_version[i] in test_vers_update:
-                if test_experiments[i] in test_vers_update[test_exp_version[i]]:
-                    test_update_params[test_experiments[i]] = test_total
-                    for key_tests in test_update_params[test_experiments[i]].keys():
-                        test_vers_update[test_exp_version[i]][test_experiments[i]][key_tests]+=test_total[key_tests]
+                        if pred_comp in pred_sum:
+                            pred_sum[pred_comp] += 1
+
+                        else:
+                            pred_sum[pred_comp] = 1
+
+                        frame_one = row['frame']
+                        frame_lst = row['frame']
+                    else:
+                        frame_one = row['frame']
+                        frame_lst = row['frame']
                 else:
-                    test_vers_update[test_exp_version[i]][test_experiments[i]]={0:0}
-                    test_vers_update[test_exp_version[i]][test_experiments[i]] = test_total
+                    frame_lst= row['frame']
+
+            if frame_lst - frame_one >= 64:
+                pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame_one]
+                pred_comp = pred_comp['pred'].to_string(index=False).strip()
+                for frame in np.arange(frame_one + 1, frame_lst - 63):
+                    pred_lst = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                    pred_lst = pred_lst['pred'].to_string(index=False).strip()
+                    if pred_comp != pred_lst:
+                        if pred_comp in pred_sum:
+                            pred_sum[pred_comp] += 1
+                            pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                            pred_comp = pred_comp['pred'].to_string(index=False).strip()
+                        else:
+                            pred_sum[pred_comp] = 1
+                            pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
+                            pred_comp = pred_comp['pred'].to_string(index=False).strip()
+                if pred_comp in pred_sum:
+                    pred_sum[pred_comp] += 1
+
+                else:
+                    pred_sum[pred_comp] = 1
+
+            print(sample_total)
+            test_update_params={}
+            test_total = {"drink": [0,0],
+                          "groom": [0,0],
+                          "eat": [0,0],
+                          "hang": [0,0],
+                          "sniff": [0,0],
+                          "rear": [0,0],
+                          "rest": [0,0],
+                          "walk": [0,0],
+                          "eathand": [0,0],
+                          "none": [0,0]}
+
+
+            for key_test in pred_sum.keys():
+                test_total[key_test][0] += pred_sum[key_test]
+
+            for key_test in sample_total.keys():
+                test_total[key_test][1] += sample_total[key_test]
+            print(test_total)
+            if test_exp_version in test_vers_update:
+                if test_experiment in test_vers_update[test_exp_version]:
+                    test_update_params[test_experiment] = test_total
+                    for key_tests in test_update_params[test_experiment].keys():
+                        test_vers_update[test_exp_version][test_experiment][key_tests][0]+=test_total[key_tests][0]
+                        test_vers_update[test_exp_version][test_experiment][key_tests][1] += test_total[key_tests][1]
+
+                else:
+                    test_vers_update[test_exp_version][test_experiment]={0:0}
+                    test_vers_update[test_exp_version][test_experiment] = test_total
             else:
-                test_update_params[test_experiments[i]] = test_total
-                test_vers_update[test_exp_version[i]] = test_update_params
+                test_update_params[test_experiment] = test_total
+                test_vers_update[test_exp_version] = test_update_params
 
         config_param = {"Boot Round": self.boot_round, "Main Path": self.main_path}
-        boot_update_params["Number of behaviors for Boot {}".format(self.boot_round)] = ver_update
         final_test["Number of behaviors for Test Set"] = test_vers_update
+
 
 
         with open(self.main_path+"/config.yaml", 'w') as file:
             documents = yaml.dump(config_param, file)
             documents = yaml.dump(final_test,file)
-            documents = yaml.dump(boot_update_params,file)
 
         file.close()
 
