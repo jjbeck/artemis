@@ -24,8 +24,7 @@ class conf_matrix_artemis():
             6: "rest",
             7: "walk",
             8: "eathand",
-            9: "no pred",
-            10: "No annotation"
+            9: "none"
         }
 
         self.csv_results = {}
