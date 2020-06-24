@@ -423,6 +423,8 @@ class show_prediction():
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
         """
+
+
         final_test = {}
         test_vers_update = {}
         for file in glob.glob(self.pickle_path + "/test/*"):
@@ -503,7 +505,6 @@ class show_prediction():
                 else:
                     pred_sum[pred_comp] = 1
 
-            print(sample_total)
             test_update_params={}
             test_total = {"drink": [0,0],
                           "groom": [0,0],
@@ -522,7 +523,7 @@ class show_prediction():
 
             for key_test in sample_total.keys():
                 test_total[key_test][1] += sample_total[key_test]
-            print(test_total)
+
             if test_exp_version in test_vers_update:
                 if test_experiment in test_vers_update[test_exp_version]:
                     test_update_params[test_experiment] = test_total

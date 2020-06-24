@@ -8,12 +8,16 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from tkinter import simpledialog
 import pandas as pd
 import re
+import yaml
 
 class conf_matrix_artemis():
 
     def __init__(self, path_to_video, path_to_csv):
         self.path_to_video = path_to_video
         self.path_to_csv = path_to_csv
+        with open('/home/jordan/Desktop/andrew_nih/Annot/config.yaml') as config:
+            data = yaml.load(config, Loader=yaml.FullLoader)
+            self.boot_round = data['Boot Round']
         self.BEHAVIOR_LABELS = {
             0: "drink",
             2: "groom",
@@ -46,30 +50,49 @@ class conf_matrix_artemis():
         self.analyze_csv= []
         self.analyze_pickle = []
         i = 0
-        self.boot_round = simpledialog.askstring(title="Test",
-                                                 prompt="What bootstrap round is this? (0,2, etc; or type all")
-        self.csv_file = askdirectory(initialdir="/home/jordan/Desktop/nihgpppipe/Annot/csv_not_done",
-                                        title="Select CSV folder")  # show an "Open" dialog box and return the path to the selected file
-        self.pickle_path = askdirectory(initialdir="/home/jordan/Desktop/nihgpppipe/Annot/pickle_files",title="Select pickle folder")
+        # First go through "/Annot/pickle_files/test" and check if file in this directory is in the directory "/Annot/csv_not_done/" .
+        # If file is, append picked file name to self.pickle_name and csv file name to self.csv_name
+        self.csv_file = askdirectory(initialdir="/home/jordan/Desktop/andrew_nih/Annot/csv_not_done",
+                                     title="Select CSV folder")  # show an "Open" dialog box and return the path to the selected file
+        self.pickle_path = askdirectory(initialdir="/home/jordan/Desktop/andrew_nih/Annot/pickle_files", title="Select pickle folder")
+        # TODO: First iterate through pkl test files. If there is a matching csv file, append both to respectile
+        #  list. This will guarantee that element at each index in list corresponds to respective element at index in
+        #  other list.
+
+        set_of_csv = set()
+        set_of_pkl = set()
+
         try:
-            for csvfile in glob.glob(self.csv_file + '/*.csv'):
-                self.csv_name.append(csvfile[csvfile.rfind('/')+1:])
+            for csv in glob.glob(self.csv_file + '/*.csv'):
+                # We clean the csv name to find just the file name:
+                #   csv_not_done/abc.csv --> abc
+                file_name = csv.replace(self.csv_file, '').replace('.csv', '')
+                set_of_csv.add(file_name)
         except:
             print('No CSV file in directory. Transfer some and run again')
 
+            # Suffix for rebuilding pickle name.
+            pickle_suffix = ''
         try:
             for picklefile in glob.glob(self.pickle_path + '/*.p'):
-                if self.boot_round == picklefile[-3]:
-                    self.pickle_name.append(picklefile[picklefile.rfind('/')+1:])
-                elif self.boot_round.lower() == 'all':
-                    self.pickle_name.append(picklefile[picklefile.rfind('/')+1:])
-
+                file_name = picklefile.replace(self.pickle_path, '')
+                # Saves the suffix past the last '_' to rebuild pickle name later.
+                pickle_suffix = file_name[file_name.rfind('_'):]
+                # Finds the last occurence of '_', and takes the string up to that.
+                file_name = file_name[:file_name.rfind('_')]
+                # test/abc_test.p --> abc
+                set_of_pkl.add(file_name)
         except:
             print('No Pickle file in directory. Transfer some and run again')
-        for file in self.pickle_name:
-            for csv in self.csv_name:
-                if re.match(file[:file.rfind('_')]+".*",csv):
-                    self.analyze_pickle.append(file)
+
+        common_files = list(set_of_pkl.intersection(set_of_csv))
+        # We rebuild list of csv and pickles from this intersection.
+        for file in common_files:
+            csv_name_rebuilt = self.csv_file + file + '.csv'
+            self.csv_name.append(csv_name_rebuilt)
+            pickle_name_rebuilt = self.pickle_path + file + pickle_suffix
+            self.analyze_pickle.append(pickle_name_rebuilt)
+
         print(self.analyze_pickle)
 
     def analyze_csv_pickle(self):
