@@ -31,6 +31,18 @@ class conf_matrix_artemis():
             9: "no pred",
             10: "No annotation"
         }
+        self.BEHAVIOR_NAMES = {
+            "drink":0,
+            "groom":2,
+            "eat":1,
+            "hang":3,
+            "sniff":4,
+            "rear":5,
+            "rest":6,
+            "walk":7,
+            "eathand":8,
+            "none":9,
+        }
 
         self.csv_results = {}
         self.num_right = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
@@ -84,45 +96,51 @@ class conf_matrix_artemis():
                 set_of_pkl.add(file_name)
         except:
             print('No Pickle file in directory. Transfer some and run again')
-
+        print(len(set_of_pkl))
         common_files = list(set_of_pkl.intersection(set_of_csv))
+        print(len(common_files))
         # We rebuild list of csv and pickles from this intersection.
         for file in common_files:
             csv_name_rebuilt = self.csv_file + file + '.csv'
-            self.csv_name.append(csv_name_rebuilt)
+            self.analyze_csv.append(csv_name_rebuilt)
             pickle_name_rebuilt = self.pickle_path + file + pickle_suffix
             self.analyze_pickle.append(pickle_name_rebuilt)
 
-        print(self.analyze_pickle)
+
 
     def analyze_csv_pickle(self):
-        for file in self.analyze_pickle:
-            csv_data = pd.read_csv(self.csv_file+'/{}'.format(file[:file.rfind('_')])+'.csv', names=[0,1])
-            annotations = pd.read_pickle(self.pickle_path+"/"+file)
-            start_frame = annotations['frame'][1]
+        for i in np.arange(0,len(self.analyze_pickle)):
+
+            csv_file = self.analyze_csv[i]
+            pickle_file = self.analyze_pickle[i]
+            csv_data = pd.read_csv(csv_file, names=['frame','pred'])
+            csv_data.sort_values(by='frame',inplace=True)
+            csv_data.drop_duplicates(subset=['frame'],inplace=True,keep='last')
+            annotations = pd.read_pickle(pickle_file)
+            annotations = annotations[annotations.pred != "none"]
+            annotations.sort_values(by='frame', inplace=True)
+            annotations.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+            start_frame = annotations['frame'].iloc[0]
+
             for index,row in annotations.iterrows():
                 end_frame = (row['frame'])
                 if end_frame - start_frame == 10:
                     ten_frames_annotations = []  # make list to store last 10 annotations and predictions
                     ten_frames_predictions = []
                     for frame in np.arange(start_frame, end_frame):
-                        try:
-                            ten_frames_annotations.append(annotations['pred'][frame])
-                            ten_frames_predictions.append(csv_data[1][frame])
-                        except:
-                            continue
+                        a = annotations[annotations['frame'] == frame]
+                        b = csv_data[csv_data['frame']==frame]
+                        ten_frames_annotations.append(self.BEHAVIOR_NAMES[(a['pred'].to_string(index=False).strip())])
+                        ten_frames_predictions.append(b['pred'].to_string(index=False).strip())
 
                     most_annotation = stats.mode(ten_frames_annotations, axis=None)
                     most_prediction = stats.mode(ten_frames_predictions, axis=None)
-
-                    # total_analyzed[int(most_annotation[0])] +=1
-                    try:
-                        self.accuracy_annotations[most_annotation[0], most_prediction[0]] += 1
-                    except:
-                        continue
-
+                    self.total_analyzed[int(most_annotation[0])] +=1
+                    self.accuracy_annotations[int(most_annotation[0]), int(most_prediction[0])] += 1
                     start_frame = end_frame
+
         for i in np.arange(len(self.accuracy_annotations)):
+            print(i)
             norm_sum = np.sum(self.accuracy_annotations[i][0:])
             if norm_sum != 0:
                 array_norm = self.accuracy_annotations[i][0:] / norm_sum
