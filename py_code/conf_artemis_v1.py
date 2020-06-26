@@ -44,7 +44,7 @@ class conf_matrix_artemis():
             "eathand":8,
             "none":9,
         }
-
+        """
         self.csv_results = {}
         self.num_right = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
         self.total_analyzed = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
@@ -56,7 +56,11 @@ class conf_matrix_artemis():
         self.pickle_name = []
         self.accuracy_annotations = np.zeros(shape=(9,9))
         self.confusion_matrix = np.zeros(shape=(9,9))
-
+        """
+        self.y_true = np.zeros(9)
+        self.y_pred = np.zeros(9)
+        print(self.y_pred)
+        print(self.y_true)
     def check_load_csv(self):
         root = tk.Tk()
         root.withdraw()
@@ -97,9 +101,8 @@ class conf_matrix_artemis():
                 set_of_pkl.add(file_name)
         except:
             print('No Pickle file in directory. Transfer some and run again')
-        print(len(set_of_pkl))
         common_files = list(set_of_pkl.intersection(set_of_csv))
-        print(len(common_files))
+
         # We rebuild list of csv and pickles from this intersection.
         for file in common_files:
             csv_name_rebuilt = self.csv_file + file + '.csv'
@@ -108,7 +111,7 @@ class conf_matrix_artemis():
             self.analyze_pickle.append(pickle_name_rebuilt)
 
 
-
+    """
     def analyze_csv_pickle(self):
         for i in np.arange(0,len(self.analyze_pickle)):
 
@@ -139,6 +142,44 @@ class conf_matrix_artemis():
                     self.total_analyzed[int(most_annotation[0])] +=1
                     self.accuracy_annotations[int(most_annotation[0]), int(most_prediction[0])] += 1
                     start_frame = end_frame
+    """
+    def analyze_csv_pickle_sk(self):
+        for i in np.arange(0, len(self.analyze_pickle)):
+
+            csv_file = self.analyze_csv[i]
+            
+            pickle_file = self.analyze_pickle[i]
+            csv_data = pd.read_csv(csv_file, names=['frame', 'pred'])
+            csv_data.sort_values(by='frame', inplace=True)
+            csv_data.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+            annotations = pd.read_pickle(pickle_file)
+            annotations = annotations[annotations.pred != "none"]
+            annotations.sort_values(by='frame', inplace=True)
+            annotations.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+            start_frame = annotations['frame'].iloc[0]
+            ten_frames_annotations = []  # make list to store last 10 annotations and predictions
+            ten_frames_predictions = []
+            for index, row in annotations.iterrows():
+
+
+                frame = int(row['frame'])
+
+                a = annotations[annotations['frame'] == frame]
+                b = csv_data[csv_data['frame'] == frame]
+                a = self.BEHAVIOR_NAMES[(a['pred'].to_string(index=False).strip())]
+                b = b['pred'].to_string(index=False).strip()
+
+                self.y_pred[int(b)] += 1
+                self.y_true[int(a)] +=1
+
+
+        conf_matrix = confusion_matrix(self.y_true,self.y_pred)
+
+
+        print(self.y_true)
+        print(self.y_pred)
+        print(conf_matrix)
+
 
         """
         for i in np.arange(len(self.accuracy_annotations)):
@@ -161,4 +202,4 @@ class conf_matrix_artemis():
 if __name__ == "__main__":
     a = conf_matrix_artemis('/home/jordan/Desktop/nihgpppipe/Annot','/home/jordan/Desktop/nihgpppipe/Annot')
     a.check_load_csv()
-    a.analyze_csv_pickle()
+    a.analyze_csv_pickle_sk()
