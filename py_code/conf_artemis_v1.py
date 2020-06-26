@@ -140,7 +140,6 @@ class conf_matrix_artemis():
                     start_frame = end_frame
 
         for i in np.arange(len(self.accuracy_annotations)):
-            print(i)
             norm_sum = np.sum(self.accuracy_annotations[i][0:])
             if norm_sum != 0:
                 array_norm = self.accuracy_annotations[i][0:] / norm_sum
