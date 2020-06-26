@@ -9,6 +9,7 @@ from tkinter import simpledialog
 import pandas as pd
 import re
 import yaml
+from sklearn.metrics import confusion_matrix
 
 class conf_matrix_artemis():
 
@@ -139,6 +140,7 @@ class conf_matrix_artemis():
                     self.accuracy_annotations[int(most_annotation[0]), int(most_prediction[0])] += 1
                     start_frame = end_frame
 
+        """
         for i in np.arange(len(self.accuracy_annotations)):
             norm_sum = np.sum(self.accuracy_annotations[i][0:])
             if norm_sum != 0:
@@ -153,6 +155,8 @@ class conf_matrix_artemis():
         plt.ylabel('Ground Truth')
         plt.xlabel('Predictions')
         plt.show()
+        """
+
 
 if __name__ == "__main__":
     a = conf_matrix_artemis('/home/jordan/Desktop/nihgpppipe/Annot','/home/jordan/Desktop/nihgpppipe/Annot')
