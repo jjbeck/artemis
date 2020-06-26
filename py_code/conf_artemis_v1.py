@@ -9,6 +9,7 @@ from tkinter import simpledialog
 import pandas as pd
 import re
 import yaml
+from sklearn.metrics import confusion_matrix
 
 
 class conf_matrix_artemis():
@@ -31,6 +32,19 @@ class conf_matrix_artemis():
             8: "eathand",
             9: "no pred",
             10: "No annotation"
+        }
+        self.BEHAVIOR_LABELS_FLIPPED = {
+            "drink": 0,
+            "groom": 2,
+            "eat": 1,
+            "hang": 3,
+            "sniff": 4,
+            "rear": 5,
+            "rest": 6,
+            "walk": 7,
+            "eathand": 8,
+            "no pred": 9,
+            "No annotation": 10
         }
 
         self.csv_results = {}
@@ -129,6 +143,31 @@ class conf_matrix_artemis():
             if norm_sum != 0:
                 array_norm = self.accuracy_annotations[i][0:] / norm_sum
                 self.confusion_matrix[i][0:] = (array_norm)
+
+    def compute_confusion_matrix(self):
+
+        csv_data_df_temp = []
+        for csv in self.csv_name:
+            data = pd.read_csv(csv)
+            csv_data_df_temp.append(data)
+        # Dataframe of all csv data.
+        csv_data = pd.concat(csv_data_df_temp, ignore_index=True)
+
+        pkl_data_df_temp = []
+        for pickle in self.pickle_name:
+            data = pd.read_pickle(pickle)
+            pkl_data_df_temp.append(data)
+        pkl_data = pd.concat(pkl_data_df_temp, ignore_index=True)
+
+        y_pred = csv_data.iloc[:, 1:].stack() # TODO: Dimensions of 1307637
+        y_true = pkl_data["pred"].apply(lambda x: self.BEHAVIOR_LABELS_FLIPPED.get(x)) # TODO: Dimensions of 128681
+        # Labels array of dimensions (n_classes)
+        labels = [mapping[1] for mapping in list(self.BEHAVIOR_LABELS.items())]
+
+        self.confusion_matrix = confusion_matrix(y_pred=y_pred, y_true=y_true, labels=labels,
+                                                 normalize='true')
+
+    def build_heatmap(self):
         plt.figure(figsize=(9, 9))
         beh = ['drink', 'eat', 'groom',
                'hang', 'sniff', 'rear', 'rest',
@@ -140,9 +179,9 @@ class conf_matrix_artemis():
         plt.show()
 
 
-
-
 if __name__ == "__main__":
     a = conf_matrix_artemis('/home/jordan/Desktop/nihgpppipe/Annot', '/home/jordan/Desktop/nihgpppipe/Annot')
     a.check_load_csv()
+    a.compute_confusion_matrix()
     a.analyze_csv_pickle()
+    a.build_heatmap()
