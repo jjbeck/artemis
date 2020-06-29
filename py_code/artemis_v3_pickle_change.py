@@ -116,6 +116,10 @@ class show_prediction():
         except:
             pass
         try:
+            os.makedirs(self.main_path + "/videos_done")
+        except:
+            pass
+        try:
             os.makedirs(self.main_path + '/videos_not_done')
 
         except:
@@ -155,10 +159,9 @@ class show_prediction():
 
         self.pickle_path = self.main_path + "/pickle_files"
 
-        self.csv_file = askopenfilename(initialdir= self.main_path + "/csv_not_done",
-                                        title="Select CSV file")  # show an "Open" dialog box and return the path to the selected file
         self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
                                           title="Select VIDEO file")
+        self.csv_file = self.main_path + "/csv_not_done" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + ".csv"
 
         if self.csv_file:
             self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
@@ -569,6 +572,10 @@ class show_prediction():
         while True:
             j = cv2.waitKey(0)
             if j == ord('s'):
+                sys.exit()
+            elif j == ord('m'):
+                os.rename(self.video_file,
+                          self.main_path + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
                 sys.exit()
 
 def main():
