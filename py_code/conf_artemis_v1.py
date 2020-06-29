@@ -36,6 +36,7 @@ class conf_matrix_artemis():
             6: "rest",
             7: "walk",
             8: "eathand",
+            9: "none"
         }
         self.BEHAVIOR_NAMES = {
             "drink": 0,

@@ -308,7 +308,6 @@ class show_prediction():
                         self.back = False
                         self.loop_video(self.start_frame, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('Q'):
-
                         self.back = True
                         self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
                     elif k & 0xFF == ord('S'):
@@ -364,23 +363,21 @@ class show_prediction():
                 return 10
 
         if self.random == True:
-            if start_frame in self.annot_pickle['frame'].values:
+            if start_frame in self.annot_pickle['frame'].values and start_frame in self.annot_data['frame'].values:
                 ("random frames already annotated. Skipping")
                 return 10
 
+        if self.back == True:
+            try:
+                a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
+                return list(self.BEHAVIOR_LABELS.keys())[
+                    list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
+            except:
+                return 9
+
         for pred in np.arange(start_frame, stop_frame + 1):
-
-            if pred not in self.non_analyzed_frames['frame'].values:
-
+            if pred in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values:
                 continue
-
-            if self.back == True:
-                try:
-                    a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
-                    return list(self.BEHAVIOR_LABELS.keys())[
-                        list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
-                except:
-                    return 9
             try:
                 preds.append(self.pred_dict[pred])
             except:
@@ -426,8 +423,12 @@ class show_prediction():
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
         """
+<<<<<<< HEAD
 
 
+=======
+        print("Updating Config File")
+>>>>>>> origin
         final_test = {}
         test_vers_update = {}
         for file in glob.glob(self.pickle_path + "/test/*"):
@@ -507,7 +508,10 @@ class show_prediction():
 
                 else:
                     pred_sum[pred_comp] = 1
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin
             test_update_params={}
             test_total = {"drink": [0,0],
                           "groom": [0,0],
@@ -545,7 +549,7 @@ class show_prediction():
         final_test["Number of behaviors for Test Set"] = test_vers_update
 
 
-
+        print("config file update done")
         with open(self.main_path+"/config.yaml", 'w') as file:
             documents = yaml.dump(config_param, file)
             documents = yaml.dump(final_test,file)
