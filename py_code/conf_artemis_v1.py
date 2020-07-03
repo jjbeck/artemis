@@ -25,7 +25,7 @@ class conf_matrix_artemis():
             self.boot_round = data['Boot Round']
             self.new_test_set_beh = data["Number of behaviors for Test Set"]["new"]
             self.old_test_set_beh = data["Number of behaviors for Test Set"]["old"]
-            print(self.new_test_set_beh)
+
         self.BEHAVIOR_LABELS = {
             0: "drink",
             1: "eat",
@@ -47,7 +47,7 @@ class conf_matrix_artemis():
             "rear": 5,
             "rest": 6,
             "walk": 7,
-            "eathand": 8,
+            "eathand":8,
             "none": 9,
         }
         self.analyze_csv = []
@@ -88,18 +88,17 @@ class conf_matrix_artemis():
             pickle_name_rebuilt = self.annotation_path + file + pickle_suffix
             self.analyze_pickle.append(pickle_name_rebuilt)
 
-    def compute_confusion_matrix(self):
+    def get_predicted_true_labels(self, csv_data, pickle_data):
         csv_data_df = []
-        for csv in self.analyze_csv:
+        for csv in csv_data:
             data = pd.read_csv(csv, names=['frame', 'pred']).drop_duplicates(subset='frame')
-            data = data[data.pred != 9]
             csv_data_df.append(data)
         # Dataframe of  all csv data.
         pkl_data_df = []
-        for pickle in self.analyze_pickle:
+        for pickle in pickle_data:
             data = pd.read_pickle(pickle)
+            data = data[data['pred'] != 'none']
             data['pred'] = data['pred'].apply(lambda x: self.BEHAVIOR_NAMES.get(x))
-            data = data[data['pred'] != 9]
             pkl_data_df.append(data)
         y_pred = []
         y_true = []
@@ -107,22 +106,119 @@ class conf_matrix_artemis():
             csv_data_for_pkl = csv_.loc[csv_['frame'].isin(pkl['frame'])]
             y_pred.append(csv_data_for_pkl['pred'])
             y_true.append(pkl['pred'])
-        # Labels array of dimensions (n_classes)
-        labels = [mapping[0] for mapping in list(self.BEHAVIOR_LABELS.items())]
+
         y_pred = pd.concat(y_pred)
         y_true = pd.concat(y_true)
-        self.confusion_matrix = confusion_matrix(y_pred=y_pred, y_true=y_true, labels=labels,
-                                                 normalize='true')
+        return y_pred, y_true
 
-    def build_heatmap(self):
-        plt.figure(figsize=(9, 9))
+    def compute_confusion_matrix(self, csv=None, pkl=None):
+        """
+        :param csv: optional argument of list of csvs.
+        :param pkl:
+        :return:
+        """
+        csv_data = csv
+        pkl_data = pkl
+        if csv is None or pkl is None:
+            csv_data = self.analyze_csv
+            pkl_data = self.analyze_pickle
+
+        # Labels array of dimensions (n_classes)
+        labels = [mapping[0] for mapping in list(self.BEHAVIOR_LABELS.items()) if mapping[1] != 'none']
+
+        y_pred, y_true = self.get_predicted_true_labels(csv_data, pkl_data)
+
+        conf_matrix = confusion_matrix(y_pred=y_pred, y_true=y_true, labels=labels,
+                                       normalize='true')
+
+        conf_matrix = np.round(conf_matrix,decimals=2)
+
+        if csv is None or pkl is None:
+            self.confusion_matrix = conf_matrix
+
+        return conf_matrix
+
+    def return_old_new(self, version, csv=None, pkl=None):
+        """
+        :param version: string of 'old' or 'new'. Raises exception if not either 'old' or 'new'.
+        If string is 'old', returns filenames which contain 'old' as 3rd slot delineated by underscores, after
+        file path has been cleaned from file path.
+        :param csv: List of strings representing csv files to filter by version.
+        :param pkl: List of strings representing pkl files to filter by version.
+        :return: Tuple of (csv, pkl), each being list of strings, each element corresponding to old/new file.
+                Includes file path in each element.
+        """
+        csv_files = csv
+        pkl_files = pkl
+
+        if csv is None or pkl is None:
+            csv_files = self.analyze_csv
+            pkl_files = self.analyze_pickle
+
+        # TODO: Currently, each csv/pkl file in function arguments must contain self.csv_path or self.pickle_path
+        #  respectively for this function to work. This is because we first clean up the strings by removing the
+        #  file path prefix. This needs to be changed so that we split on some character that delineates the end
+        #  of the path prefix and the start of the actual file name.
+
+        csv_data = [csv.replace(self.prediction_path, '') for csv in csv_files]
+        pkl_data = [pkl.replace(self.annotation_path, '') for pkl in pkl_files]
+
+        if version == 'old':
+            old_csv = [self.prediction_path + csv for csv in csv_data if csv.rsplit("_")[2] == 'old']
+            old_pkl = [self.annotation_path + pkl for pkl in pkl_data if pkl.rsplit("_")[2] == 'old']
+            return old_csv, old_pkl
+        if version == 'new':
+            new_csv = [self.prediction_path + csv for csv in csv_data if csv.rsplit("_")[2] == 'new']
+            new_pkl = [self.annotation_path + pkl for pkl in pkl_data if pkl.rsplit("_")[2] == 'new']
+            return new_csv, new_pkl
+
+        raise Exception('Error: version must be \'old\' or \'new\'.')
+
+    def build_old_new_both_heatmap(self):
+        old_csv, old_pkl = self.return_old_new(version='old')
+        new_csv, new_pkl = self.return_old_new(version='new')
+
+        old_confusion = self.compute_confusion_matrix(csv=old_csv, pkl=old_pkl)
+        new_confusion = self.compute_confusion_matrix(csv=new_csv, pkl=new_pkl)
+        both_confusion = self.compute_confusion_matrix()
+
+        bout, sample = self.calculate_metrics()
+
         beh = ['drink', 'eat', 'groom',
                'hang', 'sniff', 'rear', 'rest',
                'walk', 'eathand']
-        graph = sn.heatmap(self.confusion_matrix, xticklabels=beh, yticklabels=beh, annot=True, cmap="YlGnBu")
-        plt.yticks(rotation=0)
-        plt.ylabel('Ground Truth')
-        plt.xlabel('Predictions')
+
+        fig = plt.figure(figsize=(12,12))
+
+
+        ax0 = fig.add_subplot(3,2,1)
+        ax1 = fig.add_subplot(3,2,3)
+        ax2 = fig.add_subplot(3,2,5)
+        bt = fig.add_subplot(2,2,2)
+        smp = fig.add_subplot(2,2,4)
+        fig.subplots_adjust(hspace=0.35)
+
+
+
+        #fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, ncols=1)
+        ax0.set_title("Both")
+        both_graph = sn.heatmap(both_confusion, xticklabels=beh, yticklabels=beh,
+                                annot=True, cmap="YlGnBu", ax=ax0, )
+        both_graph.set_xticklabels(both_graph.get_xticklabels(),rotation=50)
+        ax1.set_title("Old")
+        old_graph = sn.heatmap(old_confusion, xticklabels=beh, yticklabels=beh, annot=True, cmap="YlGnBu", ax=ax1)
+        old_graph.set_xticklabels(old_graph.get_xticklabels(), rotation=50)
+        ax2.set_title("New")
+        new_graph = sn.heatmap(new_confusion, xticklabels=beh, yticklabels=beh, annot=True, cmap="YlGnBu", ax=ax2)
+        new_graph.set_xticklabels(new_graph.get_xticklabels(), rotation=50)
+        a = bout.plot.bar(ax=bt, title="Bouts for each behavior", legend=False, yticks=np.linspace(0,150,11))
+        a.set_xticklabels(a.get_xticklabels(), rotation=50)
+        b = sample.plot.bar(ax=smp, title="Samples(frames) for each behavior",
+                                 yticks=np.linspace(0, 20000, 11))
+        b.set_xticklabels(b.get_xticklabels(), rotation=50)
+        # Gets current figure, sets size (width x height, in inches, given constant dpi)
+        #plt.gcf().set_size_inches(12, 12)
+        plt.xticks(rotation=60)
         plt.show()
 
     def unpack_metrics(self, drink=[0, 0], eat=[0, 0], groom=[0, 0],
@@ -132,7 +228,7 @@ class conf_matrix_artemis():
 
     def calculate_metrics(self):
         # create empyty dictionaries to append bouts and samples to
-        self.new_sum = {"drink": [0, 0],
+        new_sum = {"drink": [0, 0],
                         "eat": [0, 0],
                         "groom": [0, 0],
                         "hang": [0, 0],
@@ -141,7 +237,7 @@ class conf_matrix_artemis():
                         "rest": [0, 0],
                         "walk": [0, 0],
                         "eathand": [0, 0]}
-        self.old_sum = {"drink": [0, 0],
+        old_sum = {"drink": [0, 0],
                         "eat": [0, 0],
                         "groom": [0, 0],
                         "hang": [0, 0],
@@ -151,26 +247,27 @@ class conf_matrix_artemis():
                         "walk": [0, 0],
                         "eathand": [0, 0]}
 
-        self.bout = pd.DataFrame()
-        self.sample = pd.DataFrame()
+        bout = pd.DataFrame()
+        sample = pd.DataFrame()
 
         for key in self.new_test_set_beh.keys():
             a = self.unpack_metrics(**self.new_test_set_beh[key])
             for beh in a.keys():
-                self.new_sum[beh] = list(map(add, self.new_sum[beh],a[beh]))
+                new_sum[beh] = list(map(add, new_sum[beh],a[beh]))
 
         for key in self.old_test_set_beh.keys():
             a = self.unpack_metrics(**self.old_test_set_beh[key])
             for beh in a.keys():
-                self.old_sum[beh] = list(map(add, self.old_sum[beh],a[beh]))
+                old_sum[beh] = list(map(add, old_sum[beh],a[beh]))
 
-        self.new_sum = pd.DataFrame.from_dict(self.new_sum,orient="index")
-        #self.new_sum["x"] = ["bouts","samples"]
-        self.old_sum = pd.DataFrame.from_dict(self.old_sum,orient="index")
-        self.bout["New Video"] = self.new_sum[0]
-        self.bout["Old Video"] = self.old_sum[0]
-        self.sample["New Video"] = self.new_sum[1]
-        self.sample["Old Video"] = self.old_sum[1]
+        new_sum = pd.DataFrame.from_dict(new_sum,orient="index")
+        old_sum = pd.DataFrame.from_dict(old_sum,orient="index")
+        bout["New Video"] = new_sum[0]
+        bout["Old Video"] = old_sum[0]
+        sample["New Video"] = new_sum[1]
+        sample["Old Video"] = old_sum[1]
+
+        return bout, sample
 
 
 
@@ -201,12 +298,11 @@ if __name__ == "__main__":
     annotation_path = "/home/jordan/Desktop/andrew_nih/Annot/pickle_files/test/"
     prediction_path = "/home/jordan/Desktop/andrew_nih/Annot/csv_not_done/"
     a = conf_matrix_artemis(config_path, annotation_path, prediction_path)
-    # a.check_load_csv()
-    # a.compute_confusion_matrix()
-    # a.build_heatmap()
-    d = {"eat": [1, 2], "drink": [5, 3]}
-    a.calculate_metrics()
-    a.build_metrics()
+    a.check_load_csv()
+    a.compute_confusion_matrix()
+    a.build_old_new_both_heatmap()
+    #a.calculate_metrics()
+    #a.build_metrics()
 
 """
 NEXT STEPS:

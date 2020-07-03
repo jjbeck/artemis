@@ -152,11 +152,8 @@ class show_prediction():
             os.makedirs(self.main_path + '/pickle_files/test')
         except:
             pass
-        root = tk.Tk()
-        root.withdraw()
-        self.test_or_train = simpledialog.askstring(title="Test",
-                                                 prompt="Add annotations to test or train dataset:")
 
+        self.test_or_train = "test"
         self.pickle_path = self.main_path + "/pickle_files"
 
         self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
@@ -183,59 +180,49 @@ class show_prediction():
         self.exp_frames_analyzed_list = []
         self.start_frame = []
         self.prediction_state = False
-        for file in glob.glob(self.pickle_path + "/train"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
-            self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
-            self.exp_frames_analyzed_list.append(self.annot_pickle)
-            self.frames_analyzed.append(len(self.annot_pickle.index))
+        self.exp_file = False
         for file in glob.glob(self.pickle_path + "/test"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
-            self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
-            self.exp_frames_analyzed_list.append(self.annot_pickle)
-            self.frames_analyzed.append(len(self.annot_pickle.index))
+            print(file)
+            if "leo" in file:
+                self.annot_pickle_exp = pd.read_pickle(file)
+                self.annot_pickle.sort_values(by='frame', inplace=True)
+                self.exp_file = True
+            else:
+                self.annot_pickle = pd.read_pickle(file)
+                self.annot_pickle.sort_values(by='frame',inplace=True)
+                self.exp_frames_analyzed_list.append(self.annot_pickle)
         try:
-            self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
-            self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
-            self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed],sort=True).drop_duplicates(subset=['frame'],keep=False)
 
+            self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
+            print(self.exp_frames_analyzed)
+            self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
+            self.non_analyzed_frames = pd.concat(
+                [self.exp_frames_analyzed, self.annot_pickle_exp, self.annot_pickle_exp], sort=True).drop_duplicates(
+                subset=['frame'], keep=False)
         except:
-            self.non_analyzed_frames = self.total_frames
             pass
         try:
             self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
             self.prediction_state = True
         except:
             pass
+        pickl_pres = True
+        try:
+            self.frames_analyzed.append(len(self.annot_pickle_exp.index))
+        except:
+            pass
+        try:
+            self_start = (self.non_analyzed_frames['frame'].iloc[0])
+        except:
+            print("go")
+            self_start = self.exp_frames_analyzed['frame'].iloc[0]
 
-        if self.test_or_train == 'test':
-            try:
-                self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
-                self.annot_pickle.sort_values(by='frame',inplace=True)
-                self.annot_pickle.drop_duplicates(subset=['frame'])
-                pickl_pres = True
-            except:
-                self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
-                pickl_pres = False
-                pass
-        else:
-            try:
-                self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/train" + self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
-                self.annot_pickle.sort_values(by='frame', inplace=True)
-                self.annot_pickle.drop_duplicates(subset=['frame'])
-                pickl_pres = True
-            except:
-                self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
-                pickl_pres = False
-                pass
-        self_start = (self.non_analyzed_frames['frame'].iloc[0])
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
         return  self_start
 
     def choose_random_frame(self):
-        a = self.non_analyzed_frames.sample()
+        a = self.exp_frames_analyzed.sample()
         a = a["frame"]
         a = int(a)
         self.loop_video(a,self.interval,self.playback_speed)
@@ -358,7 +345,6 @@ class show_prediction():
         beh_exist = beh_exist.dropna()
         a = beh_exist.sample()
         a = a["frame"]
-        print(beh_exist)
         a = int(a)
         self.loop_video(a, self.interval, self.playback_speed)
 
@@ -375,21 +361,10 @@ class show_prediction():
         #   last thing i need to MAKE IT SO PREDICTIONS CHECKS FOR FRAME STILL IN ANALYZED FRAMES AND NOT IN PREDICTIONS
         preds = []
 
-        if not self.csv_file:
-            if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data['frame'].values:
-                return 9
-            elif self.back == True:
-                a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
-                return list(self.BEHAVIOR_LABELS.keys())[
-                    list(self.BEHAVIOR_LABELS.values()).index(a['pred'].to_string(index=False).strip())]
-            elif self.forward == True:
-                return 9
-            else:
-                return 10
 
         if self.random == True:
-            if start_frame in self.annot_pickle['frame'].values and start_frame in self.annot_data['frame'].values:
-                ("random frames already annotated. Skipping")
+            if start_frame not in self.annot_pickle['frame'].values or start_frame in self.annot_data['frame'].values:
+                ("random frames not annotated. Skipping")
                 return 10
 
         if self.back == True:
@@ -401,7 +376,7 @@ class show_prediction():
                 return 9
 
         for pred in np.arange(start_frame, stop_frame + 1):
-            if pred in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values:
+            if pred not in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values:
                 continue
             try:
                 preds.append(self.pred_dict[pred])
@@ -434,13 +409,23 @@ class show_prediction():
         :return:
         pickle file with columns [frame, pred]
         """
-        self.annot_pickle_final = pd.concat([self.annot_pickle, self.annot_data])
-        self.annot_pickle_final.sort_values(by='frame',inplace=True)
-        self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
-        if self.test_or_train == 'test':
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+        if self.exp_file == True:
+            self.annot_pickle_final = pd.concat([self.annot_pickle_exp, self.annot_data])
+            self.annot_pickle_final.sort_values(by='frame', inplace=True)
+            self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
         else:
-            self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
+            self.annot_pickle_final = self.annot_data
+            self.annot_pickle_final.sort_values(by='frame', inplace=True)
+            self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+            self.annot_pickle_final.to_pickle(
+                self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
+
+        a = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
+        b = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+        print(a)
+        print(b)
+
         self.done_with_video()
 
     def done_with_video(self):
@@ -449,133 +434,8 @@ class show_prediction():
         Either moves video and csv file to done directory, or keeps in not_done directory.
         """
 
-        print("Updating Config File")
 
-        final_test = {}
-        test_vers_update = {}
-        for file in glob.glob(self.pickle_path + "/test/*"):
-            sample_total = {"drink": 0,
-                          "groom": 0,
-                          "eat": 0,
-                          "hang": 0,
-                          "sniff": 0,
-                          "rear": 0,
-                          "rest": 0,
-                          "walk": 0,
-                          "eathand": 0,
-                          "none": 0}
-            pred_sum = {}
-            self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame', inplace=True)
-            self.annot_pickle = self.annot_pickle[self.annot_pickle.pred != 'none']
-            test_beh = (self.annot_pickle)
-            file = file[file.rfind('/') + 1:]
-            test_experiment = (file[:file.find('_')])
-            matches = re.finditer("_", file)
-            matches_positions = [match.start() for match in matches]
-            test_exp_version = (file[matches_positions[1] + 1:matches_positions[2]])
-
-            frame_one = self.annot_pickle['frame'].iloc[0]
-            frame_lst = self.annot_pickle['frame'].iloc[0]
-            for index, row in self.annot_pickle.iterrows():
-                if row['frame'] - frame_lst >1:
-                    if frame_lst - frame_one >= 64:
-                        pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame_one]
-                        pred_comp = pred_comp['pred'].to_string(index=False).strip()
-                        for frame in np.arange(frame_one+1, frame_lst-63):
-                            pred_lst = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                            pred_lst = pred_lst['pred'].to_string(index=False).strip()
-                            sample_total[pred_lst] += 1
-                            if pred_comp != pred_lst:
-                                if pred_comp in pred_sum:
-                                    pred_sum[pred_comp] += 1
-                                    pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                                    pred_comp = pred_comp['pred'].to_string(index=False).strip()
-                                else:
-                                    pred_sum[pred_comp] = 1
-                                    pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                                    pred_comp = pred_comp['pred'].to_string(index=False).strip()
-
-                        if pred_comp in pred_sum:
-                            pred_sum[pred_comp] += 1
-
-                        else:
-                            pred_sum[pred_comp] = 1
-
-                        frame_one = row['frame']
-                        frame_lst = row['frame']
-                    else:
-                        frame_one = row['frame']
-                        frame_lst = row['frame']
-                else:
-                    frame_lst= row['frame']
-
-            if frame_lst - frame_one >= 64:
-                pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame_one]
-                pred_comp = pred_comp['pred'].to_string(index=False).strip()
-                for frame in np.arange(frame_one + 1, frame_lst - 63):
-                    pred_lst = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                    pred_lst = pred_lst['pred'].to_string(index=False).strip()
-                    if pred_comp != pred_lst:
-                        if pred_comp in pred_sum:
-                            pred_sum[pred_comp] += 1
-                            pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                            pred_comp = pred_comp['pred'].to_string(index=False).strip()
-                        else:
-                            pred_sum[pred_comp] = 1
-                            pred_comp = self.annot_pickle.loc[self.annot_pickle['frame'] == frame]
-                            pred_comp = pred_comp['pred'].to_string(index=False).strip()
-                if pred_comp in pred_sum:
-                    pred_sum[pred_comp] += 1
-
-                else:
-                    pred_sum[pred_comp] = 1
-
-            test_update_params={}
-            test_total = {"drink": [0,0],
-                          "groom": [0,0],
-                          "eat": [0,0],
-                          "hang": [0,0],
-                          "sniff": [0,0],
-                          "rear": [0,0],
-                          "rest": [0,0],
-                          "walk": [0,0],
-                          "eathand": [0,0],
-                          "none": [0,0]}
-
-
-            for key_test in pred_sum.keys():
-                test_total[key_test][0] += pred_sum[key_test]
-
-            for key_test in sample_total.keys():
-                test_total[key_test][1] += sample_total[key_test]
-
-            if test_exp_version in test_vers_update:
-                if test_experiment in test_vers_update[test_exp_version]:
-                    test_update_params[test_experiment] = test_total
-                    for key_tests in test_update_params[test_experiment].keys():
-                        test_vers_update[test_exp_version][test_experiment][key_tests][0]+=test_total[key_tests][0]
-                        test_vers_update[test_exp_version][test_experiment][key_tests][1] += test_total[key_tests][1]
-
-                else:
-                    test_vers_update[test_exp_version][test_experiment]={0:0}
-                    test_vers_update[test_exp_version][test_experiment] = test_total
-            else:
-                test_update_params[test_experiment] = test_total
-                test_vers_update[test_exp_version] = test_update_params
-
-        config_param = {"Boot Round": self.boot_round, "Main Path": self.main_path}
-        final_test["Number of behaviors for Test Set"] = test_vers_update
-
-
-        print("config file update done")
-        with open(self.main_path+"/config.yaml", 'w') as file:
-            documents = yaml.dump(config_param, file)
-            documents = yaml.dump(final_test,file)
-
-        file.close()
-
-        frame_total = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_total = len(self.annot_pickle)
         try:
             self.frames_analyzed.append(len(self.annot_data.index))
         except:
