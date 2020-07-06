@@ -24,6 +24,7 @@ class show_prediction():
         :param main_path:
        :
         """
+        self.new_ind = 0
         self.back = False
         self.forward = False
         self.random = False
@@ -182,10 +183,11 @@ class show_prediction():
         self.prediction_state = False
         self.exp_file = False
         for file in glob.glob(self.pickle_path + "/test"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
-            print(file)
-            if "leo" in file:
+
+            if "sami" in file:
                 self.annot_pickle_exp = pd.read_pickle(file)
-                self.annot_pickle.sort_values(by='frame', inplace=True)
+                self.annot_pickle_exp_final = pd.read_pickle(file)
+                self.annot_pickle_exp.sort_values(by='frame', inplace=True)
                 self.exp_file = True
             else:
                 self.annot_pickle = pd.read_pickle(file)
@@ -194,7 +196,7 @@ class show_prediction():
         try:
 
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
-            print(self.exp_frames_analyzed)
+
             self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
             self.non_analyzed_frames = pd.concat(
                 [self.exp_frames_analyzed, self.annot_pickle_exp, self.annot_pickle_exp], sort=True).drop_duplicates(
@@ -211,11 +213,24 @@ class show_prediction():
             self.frames_analyzed.append(len(self.annot_pickle_exp.index))
         except:
             pass
+
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "eat"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "eathand"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "groom"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "drink"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "rest"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "hang"]
+        self.annot_pickle_exp = self.annot_pickle_exp[self.annot_pickle_exp['pred'] != "none"]
+        self.annot_pickle_exp_final = self.annot_pickle_exp_final[self.annot_pickle_exp_final["pred"] != "sniff"]
+        self.annot_pickle_exp_final = self.annot_pickle_exp_final[self.annot_pickle_exp_final["pred"] != "drink"]
+        self.annot_pickle_exp_final = self.annot_pickle_exp_final[self.annot_pickle_exp_final["pred"] != "rear"]
+        self.annot_pickle_exp.reset_index()
+        print(self.annot_pickle_exp)
         try:
-            self_start = (self.non_analyzed_frames['frame'].iloc[0])
+            self_start = (self.annot_pickle_exp['frame'].iloc[0])
         except:
             print("go")
-            self_start = self.exp_frames_analyzed['frame'].iloc[0]
+            self_start = self.annot_pickle_exp['frame'].iloc[0]
 
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
@@ -235,7 +250,7 @@ class show_prediction():
         :return:
         Appends annotation to pandas dataframe
         """
-
+        data_ind = 0
         print(f"You have analyzed {len(self.annot_data)} frames in this session\r",end="")
         self.interval = interval
         self.start_frame = (start_frame)
@@ -250,7 +265,9 @@ class show_prediction():
                 ret, frame = self.cap.read()
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
-                    self.loop_video((self.start_frame + self.interval), self.interval)
+                    self.new_ind += 29
+
+                    self.loop_video((self.annot_pickle_exp['frame'].iloc[self.new_ind]), self.interval)
                 frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
@@ -284,7 +301,9 @@ class show_prediction():
                         self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += 29
+
+                        self.loop_video((self.annot_pickle_exp['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
                         cv2.destroyAllWindows()
@@ -294,7 +313,7 @@ class show_prediction():
                         self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video(self.start_frame, self.interval, self.playback_speed)
+                        self.loop_video((self.annot_pickle_exp['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('Q'):
                         self.back = True
                         self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
@@ -309,13 +328,17 @@ class show_prediction():
                         self.forward = False
                         self.back = False
                         self.random = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += 29
+
+                        self.loop_video((self.annot_pickle_exp['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
                         self.forward = False
                         self.back = False
                         self.random = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += 29
+
+                        self.loop_video((self.annot_pickle_exp['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
 
                     elif k & 0xFF == ord('r'):
                         self.random = True
@@ -376,8 +399,7 @@ class show_prediction():
                 return 9
 
         for pred in np.arange(start_frame, stop_frame + 1):
-            if pred not in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values:
-                continue
+
             try:
                 preds.append(self.pred_dict[pred])
             except:
@@ -409,19 +431,23 @@ class show_prediction():
         :return:
         pickle file with columns [frame, pred]
         """
+        final_list = [self.annot_pickle_exp, self.annot_pickle_exp_final]
+        self.annot_pickle_final = pd.concat(final_list,ignore_index=True)
+        print(self.annot_pickle_final)
+
         if self.exp_file == True:
             self.annot_pickle_final = pd.concat([self.annot_pickle_exp, self.annot_data])
             self.annot_pickle_final.sort_values(by='frame', inplace=True)
             self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
+            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
         else:
             self.annot_pickle_final = self.annot_data
             self.annot_pickle_final.sort_values(by='frame', inplace=True)
             self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
             self.annot_pickle_final.to_pickle(
-                self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
+                self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
 
-        a = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_leo.p')
+        a = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
         b = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
         print(a)
         print(b)

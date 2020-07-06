@@ -75,31 +75,38 @@ class conf_matrix_artemis():
                     set_of_jordan.add(file_name)
 
 
+
+
         except:
             print('No CSV file in directory. Transfer some and run again')
 
+
+
         # Suffix for rebuilding pickle name.
         pickle_suffix = ''
-        common_files = list(set_of_leo.intersection(set_of_sami))
-        all_files = list(set_of_jordan.intersection(common_files))
+        common_files = list(set_of_jordan.intersection(set_of_sami))
+        #all_files = list(set_of_jordan.intersection(common_files))
         # We rebuild list of csv and pickles from this intersection.
         for file in common_files:
             sami_name_rebuilt = self.test_path + file + '_sami.p'
             self.analyze_sami.append(sami_name_rebuilt)
-            leo_name_rebuilt = self.test_path + file + '_leo.p'
-            self.analyze_leo.append(leo_name_rebuilt)
+            #leo_name_rebuilt = self.test_path + file + '_leo.p'
+            #self.analyze_leo.append(leo_name_rebuilt)
             jordan_name_rebuilt = self.test_path + file + '.p'
             self.analyze_jordan.append(jordan_name_rebuilt)
 
-    def get_predicted_true_labels(self, leo_data, sami_data, jordan_data):
-        leo_data_df = []
+    def get_predicted_true_labels(self, sami_data, jordan_data):
+    #def get_predicted_true_labels(self, leo_data, sami_data, jordan_data):
+        #leo_data_df = []
         sami_data_df = []
         jordan_data_df = []
+        """
         for leo in leo_data:
             data = pd.read_pickle(leo)
             data = data[data['pred'] != 'none']
             data['pred'] = data['pred'].apply(lambda x: self.BEHAVIOR_NAMES.get(x))
             leo_data_df.append(data)
+        """
         for sami in sami_data:
             data = pd.read_pickle(sami)
             data = data[data['pred'] != 'none']
@@ -113,55 +120,64 @@ class conf_matrix_artemis():
 
         y_jordan_sami = []
         y_sami = []
-        y_leo = []
-        y_jordan_leo = []
+        #y_leo = []
+        #y_jordan_leo = []
         for sami, jordan in zip(jordan_data_df, sami_data_df):
             sami_data_for_jordan = sami.loc[sami['frame'].isin(jordan['frame'])]
+            jordan_data_in_sami = jordan.loc[jordan['frame'].isin(sami["frame"])]
             y_sami.append(sami_data_for_jordan['pred'])
-            y_jordan_sami.append(jordan['pred'])
+            y_jordan_sami.append(jordan_data_in_sami['pred'])
+
+        """
         for leo, jordan in zip(jordan_data_df, leo_data_df):
             leo_data_for_jordan = leo.loc[leo['frame'].isin(jordan['frame'])]
             y_leo.append(leo_data_for_jordan['pred'])
             y_jordan_leo.append(jordan['pred'])
+        """
 
-        y_leo = pd.concat(y_leo)
+
+        #y_leo = pd.concat(y_leo)
         y_sami = pd.concat(y_sami)
-        y_jordan_leo = pd.concat(y_jordan_leo)
+        #y_jordan_leo = pd.concat(y_jordan_leo)
         y_jordan_sami = pd.concat(y_jordan_sami)
+        print(len(y_sami))
+        print(len(y_jordan_sami))
+        return y_sami,y_jordan_sami
+        #return y_leo, y_sami, y_jordan_leo, y_jordan_sami
 
-        return y_leo, y_sami, y_jordan_leo, y_jordan_sami
-
-    def compute_confusion_matrix(self, leo=None, sami=None, jordan=None):
+    def compute_confusion_matrix(self, sami=None, jordan=None):
+    #def compute_confusion_matrix(self, leo=None, sami=None, jordan=None):
         """
         :param csv: optional argument of list of csvs.
         :param pkl:
         :return:
         """
-        leo_data = leo
+        #leo_data = leo
         sami_data = sami
         jordan_data= jordan
-        if leo_data is None or sami_data is None:
-            leo_data = self.analyze_leo
+        if sami_data is None:
+            #leo_data = self.analyze_leo
             sami_data = self.analyze_sami
             jordan_data = self.analyze_jordan
 
         # Labels array of dimensions (n_classes)
         labels = [mapping[0] for mapping in list(self.BEHAVIOR_LABELS.items()) if mapping[1] != 'none']
 
-        y_leo, y_sami, y_jordan_leo, y_jordan_sami = self.get_predicted_true_labels(leo_data, sami_data, jordan_data)
+        #y_leo, y_sami, y_jordan_leo, y_jordan_sami = self.get_predicted_true_labels(leo_data, sami_data, jordan_data)
+        y_sami, y_jordan_sami = self.get_predicted_true_labels(sami_data, jordan_data)
 
-        conf_matrix_leo = confusion_matrix(y_pred=y_leo, y_true=y_jordan_leo, labels=labels,
-                                       normalize='true')
+        #conf_matrix_leo = confusion_matrix(y_pred=y_leo, y_true=y_jordan_leo, labels=labels,
+        #                               normalize='true')
         conf_matrix_sami = confusion_matrix(y_pred=y_sami, y_true=y_jordan_sami, labels=labels,
                                            normalize='true')
 
-        conf_matrix_leo = np.round(conf_matrix_leo, decimals=2)
+        #conf_matrix_leo = np.round(conf_matrix_leo, decimals=2)
 
         conf_matrix_sami = np.round(conf_matrix_sami, decimals=2)
 
 
 
-        return conf_matrix_leo, conf_matrix_sami
+        return conf_matrix_sami
 
     def return_old_new(self, csv=None, pkl=None):
         """
@@ -177,7 +193,7 @@ class conf_matrix_artemis():
         pkl_files = pkl
 
         if csv is None or pkl is None:
-            leo_files = self.analyze_leo
+            #leo_files = self.analyze_leo
             sami_files = self.analyze_sami
             jordan_files = self.analyze_jordan
 
@@ -186,23 +202,23 @@ class conf_matrix_artemis():
         #  file path prefix. This needs to be changed so that we split on some character that delineates the end
         #  of the path prefix and the start of the actual file name.
 
-        leo_data = [pkl.replace(self.test_path, '') for pkl in leo_files]
+        #leo_data = [pkl.replace(self.test_path, '') for pkl in leo_files]
         sami_data = [pkl.replace(self.test_path, '') for pkl in sami_files]
         jordan_data = [pkl.replace(self.test_path, '') for pkl in jordan_files]
 
 
 
 
-        leo_csv = [self.test_path + csv for csv in leo_data]
+        #leo_csv = [self.test_path + csv for csv in leo_data]
         sami_csv = [self.test_path + pkl for pkl in sami_data]
         jordan_csv = [self.test_path + pkl for pkl in jordan_data]
-        return leo_csv, sami_csv, jordan_csv
+        return sami_csv, jordan_csv
 
 
     def build_old_new_both_heatmap(self):
-        leo_csv, sami_csv, jordan_csv = self.return_old_new()
+        sami_csv, jordan_csv = self.return_old_new()
 
-        leo_conf, sami_conf = self.compute_confusion_matrix()
+        sami_conf = self.compute_confusion_matrix()
 
 
         beh = ['drink', 'eat', 'groom',
@@ -221,10 +237,10 @@ class conf_matrix_artemis():
 
 
         ax0.set_title("Leo and Jordan Accuracy")
-        both_graph = sn.heatmap(leo_conf, xticklabels=beh, yticklabels=beh,
-                                annot=True, cmap="YlGnBu", ax=ax0, )
-        both_graph.set_xticklabels(both_graph.get_xticklabels(),rotation=50)
-        both_graph.set_yticklabels(both_graph.get_yticklabels(), rotation=60)
+        #both_graph = sn.heatmap(leo_conf, xticklabels=beh, yticklabels=beh,
+         #                       annot=True, cmap="YlGnBu", ax=ax0, )
+        #both_graph.set_xticklabels(both_graph.get_xticklabels(),rotation=50)
+        #both_graph.set_yticklabels(both_graph.get_yticklabels(), rotation=60)
         ax1.set_title("Sami and Jordan Accuracy")
         old_graph = sn.heatmap(sami_conf, xticklabels=beh, yticklabels=beh, annot=True, cmap="YlGnBu", ax=ax1)
         old_graph.set_xticklabels(old_graph.get_xticklabels(), rotation=50)

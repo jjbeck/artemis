@@ -43,6 +43,18 @@ class show_prediction():
             8: "eathand",
             9: "none"
         }
+        self.pick_keys = {
+            48:0,
+            49:1,
+            50:2,
+            51:3,
+            52:4,
+            53:5,
+            54:6,
+            55:7,
+            56:8,
+            57:9,
+        }
         # empty dataframe to store annotations for session
         self.annot_data = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
         self.annotating = True
@@ -259,6 +271,12 @@ class show_prediction():
             print("Error opening video stream or file")
         self.cap.set(1, self.start_frame)
         while (self.cap.isOpened()):
+            if int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) == self.cap.get(cv2.CAP_PROP_FRAME_COUNT):
+                self.annotating = False
+                cv2.destroyAllWindows()
+                self.det_pred = None
+                self.save_annotations_as_pickle()
+
             if int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) - self.start_frame < self.interval:
                 ret, frame = self.cap.read()
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
@@ -339,7 +357,21 @@ class show_prediction():
                         self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
 
                     elif k & 0xFF == ord('p'):
-                        self.choose_frame()
+                        j = cv2.waitKey(0)
+                        beh = self.pick_keys[j]
+                        print(beh)
+                        con_data = pd.concat([self.annot_pickle, self.annot_data], sort=True)
+                        non_analyzed_frames = pd.concat([self.predictions, con_data, con_data]).drop_duplicates(
+                            subset=['frame'], keep=False)
+                        beh_exist = non_analyzed_frames.where(non_analyzed_frames['pred'] == beh)
+                        beh_exist = beh_exist.dropna()
+
+                        a = beh_exist.sample()
+                        a = a["frame"]
+                        a = int(a)
+                        self.loop_video(a, self.interval, self.playback_speed)
+                        
+
 
     def choose_frame(self):
         beh = input("Enter behavior you would like to find: ")
@@ -353,15 +385,17 @@ class show_prediction():
                         "walk": 7,
                         "eathand":8,
                         "none": 9}
-        beh = beh_to_num[beh]
-        beh_exist = self.predictions.where(self.predictions['pred'] == beh)
+
+        con_data = pd.concat([self.annot_pickle,self.annot_data], sort=True)
+        non_analyzed_frames = pd.concat([self.predictions,con_data,con_data]).drop_duplicates(subset=['frame'],keep=False)
+        beh_exist = non_analyzed_frames.where(non_analyzed_frames['pred'] == beh_to_num[beh])
         beh_exist = beh_exist.dropna()
+        print(beh_exist)
         a = beh_exist.sample()
         a = a["frame"]
-        print(beh_exist)
         a = int(a)
-        self.loop_video(a, self.interval, self.playback_speed)
 
+        self.loop_video(a, self.interval, self.playback_speed)
 
 
     def determine_prediction(self, start_frame, stop_frame):
