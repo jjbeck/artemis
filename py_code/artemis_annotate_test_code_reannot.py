@@ -184,15 +184,11 @@ class show_prediction():
         self.exp_file = False
         for file in glob.glob(self.pickle_path + "/test"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
 
-            if "sami" in file:
-                self.annot_pickle_exp = pd.read_pickle(file)
-                self.annot_pickle_exp_final = pd.read_pickle(file)
-                self.annot_pickle_exp.sort_values(by='frame', inplace=True)
-                self.exp_file = True
-            else:
-                self.annot_pickle = pd.read_pickle(file)
-                self.annot_pickle.sort_values(by='frame',inplace=True)
-                self.exp_frames_analyzed_list.append(self.annot_pickle)
+
+            self.annot_pickle = pd.read_pickle(file)
+            self.annot_pickle_leftover = pd.read_pickle(file)
+            self.annot_pickle.sort_values(by='frame',inplace=True)
+            self.exp_frames_analyzed_list.append(self.annot_pickle)
         try:
 
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
@@ -216,14 +212,14 @@ class show_prediction():
 
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eat"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eathand"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "groom"]
+        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "sniff"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "drink"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rest"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "hang"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "none"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "walk"]
         self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rear"]
-        self.annot_pickle_exp_final = self.annot_pickle_exp_final[self.annot_pickle_exp_final["pred"] != "sniff"]
+        self.annot_pickle_leftover = self.annot_pickle_leftover[self.annot_pickle_leftover["pred"] != "groom"]
 
 
         self.annot_pickle.reset_index()
@@ -303,8 +299,12 @@ class show_prediction():
                         self.forward = False
                         self.back = False
                         self.new_ind += 29
-
-                        self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
                         cv2.destroyAllWindows()
@@ -314,13 +314,28 @@ class show_prediction():
                         self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('Q'):
                         self.back = True
-                        self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
+                        try:
+                            self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('S'):
                         self.forward = True
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
                             '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
@@ -330,16 +345,24 @@ class show_prediction():
                         self.back = False
                         self.random = False
                         self.new_ind += 29
-
-                        self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
                         self.forward = False
                         self.back = False
                         self.random = False
                         self.new_ind += 29
-
-                        self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.annot_pickle['frame'].iloc[self.new_ind]), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
 
                     elif k & 0xFF == ord('r'):
                         self.random = True
@@ -347,7 +370,12 @@ class show_prediction():
 
                     elif k & 0xFF == ord('s'):
                         self.forward = True
-                        self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
 
                     elif k & 0xFF == ord('p'):
                         self.choose_frame()
@@ -434,19 +462,13 @@ class show_prediction():
         """
 
 
-        if self.exp_file == True:
-            self.annot_pickle_final = pd.concat([self.annot_pickle_exp_final, self.annot_data])
-            self.annot_pickle_final.sort_values(by='frame', inplace=True)
-            self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
-        else:
-            self.annot_pickle_final = self.annot_data
-            self.annot_pickle_final.sort_values(by='frame', inplace=True)
-            self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
-            self.annot_pickle_final.to_pickle(
-                self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
+        self.annot_pickle_final = pd.concat([self.annot_pickle_leftover, self.annot_data])
+        self.annot_pickle_final.sort_values(by='frame', inplace=True)
+        self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
+        self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
 
-        a = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test_sami.p')
+
+        a = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
         b = pd.read_pickle(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
         print(a)
         print(b)

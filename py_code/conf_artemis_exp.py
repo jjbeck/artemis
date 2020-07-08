@@ -74,13 +74,8 @@ class conf_matrix_artemis():
                     file_name = jordan.replace(self.test_path, '').replace('.p', '')
                     set_of_jordan.add(file_name)
 
-
-
-
         except:
             print('No CSV file in directory. Transfer some and run again')
-
-
 
         # Suffix for rebuilding pickle name.
         pickle_suffix = ''
@@ -267,7 +262,7 @@ if __name__ == "__main__":
     test_path = "/home/jordan/Desktop/andrew_nih/Annot/pickle_files/test/"
     a = conf_matrix_artemis(test_path)
     a.check_load_csv()
-    a.compute_confusion_matrix()
+    #a.compute_confusion_matrix()
     a.build_old_new_both_heatmap()
 
 """
