@@ -11,6 +11,8 @@ from tkinter import simpledialog
 import argparse
 import yaml
 import re
+import pims
+import matplotlib.pyplot as plt
 
 
 class show_prediction():
@@ -178,9 +180,9 @@ class show_prediction():
 
         if self.csv_file:
             self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
-        self.cap = cv2.VideoCapture(self.video_file)
+        self.cap = pims.PyAVReaderTimed(self.video_file)
 
-        self.video_length = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.video_length = len(self.cap)
 
         frame_arr = np.arange(80,(self.video_length+1))
         self.total_frames = pd.DataFrame(data=frame_arr, columns=['frame'])
@@ -267,28 +269,25 @@ class show_prediction():
         self.end_frame = self.start_frame + (self.interval)
         self.made_pred = True
         self.playback_speed = playback_speed
-        if (self.cap.isOpened() == False):
-            print("Error opening video stream or file")
-        self.cap.set(1, self.start_frame)
-        while (self.cap.isOpened()):
-            if int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) - self.start_frame < self.interval:
-                ret, frame = self.cap.read()
+        while self.annotating == True:
+            for i in np.arange(0,self.interval):
+                img = self.cap[self.start_frame + i]
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
                     self.loop_video((self.start_frame + self.interval), self.interval)
-                frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
+                frame_pred = cv2.putText(img, "Current: Frame " + str(self.start_frame + i) +  "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
-                cv2.imshow('image', frame)
+                cv2.imshow('image', img)
                 cv2.waitKey(int((1 / (self.interval * self.playback_speed))*1000))
             else:
                 if self.annotating == True:
-                    frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
+                    frame_pred = cv2.putText(img, "Loop Done.", (5, 50),
                                              cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                              (60, 76, 231), 1, cv2.LINE_AA)
-                    cv2.imshow('image', frame)
+                    cv2.imshow('image', img)
                     k = cv2.waitKey(100)
                     ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
                     title_image2 = cv2.putText(ndarray, "What was the behavior?",
@@ -606,7 +605,7 @@ class show_prediction():
 
         file.close()
 
-        frame_total = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_total = len(self.video_length)
         try:
             self.frames_analyzed.append(len(self.annot_data.index))
         except:

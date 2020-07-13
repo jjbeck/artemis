@@ -86,6 +86,7 @@ class conf_matrix_artemis():
             csv_name_rebuilt = self.prediction_path + file + '.csv'
             self.analyze_csv.append(csv_name_rebuilt)
             pickle_name_rebuilt = self.annotation_path + file + pickle_suffix
+
             self.analyze_pickle.append(pickle_name_rebuilt)
 
     def get_predicted_true_labels(self, csv_data, pickle_data):

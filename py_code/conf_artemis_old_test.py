@@ -15,6 +15,8 @@ from operator import add
 import h5py
 import hdfdict
 from collections import defaultdict
+import csv
+from sklearn.metrics import balanced_accuracy_score
 
 class conf_matrix_artemis():
 
@@ -97,40 +99,48 @@ class conf_matrix_artemis():
         csv_data_df = []
         for csv in csv_data:
             csv = csv + '.csv'
-            data = pd.read_csv(csv, names=['frame', 'pred']).drop_duplicates(subset='frame')
-            data.dropna()
-            csv_data_df.append(data)
+            with open(csv, 'rb') as f:
+                preds = f.readlines()
+                preds = [str(x).split(',')[-1].strip('\n\r') for x in preds]
+                preds = [x[0] for x in preds]
+                preds = [int(x[0]) for x in preds]
+
+            csv_data_df.append(preds)
+
         # Dataframe of  all csv data.
         pkl_data_df = []
         for pickle in csv_data:
             pickle = pickle.replace(self.prediction_path, self.annotation_path)
             pickle = pickle + '.mp4_annoated.h5'
-            data_series = defaultdict(list)
             data = h5py.File(pickle, 'r')
-            data = data['labels']
-            for i in np.arange(0,108000):
+            gt = data.get('labels')
+            gts = ['none'.encode() if x.decode('utf-8') == 'dig' or x.decode('utf-8') == 'body-turn' or
+                   x.decode('utf-8') == 'jump' else x for x in gt]
+            gts = [self.BEHAVIOR_NAMES[x.decode('utf-8')] for x in gts]
+            print(len(gts))
+            new_gts = gts[80:-80]
+            pkl_data_df.append(new_gts)
 
-                data_series['frame'].append(i)
-                data_series['pred'].append((data[i].decode()))
-            data = pd.DataFrame.from_dict(data_series, dtype='int64')
-            data = data[data['pred'] != 'none']
-            print(data)
-            data['pred'] = data['pred'].apply(lambda x: self.BEHAVIOR_NAMES.get(x))
-            print(data)
-            pkl_data_df.append(data)
-        y_pred = []
-        y_true = []
-        for csv_, pkl in zip(csv_data_df, pkl_data_df):
-            csv_data_for_pkl = csv_.loc[csv_['frame'].isin(pkl['frame'])]
-            y_pred.append(csv_data_for_pkl['pred'])
-            y_true.append(pkl['pred'])
+        y_pred = [items for sublist in csv_data_df for items in sublist]
+        y_true = [items for sublist in pkl_data_df for items in sublist]
 
-        y_pred = pd.concat(y_pred)
-        y_true = pd.concat(y_true)
-        print(y_pred)
+        y_pred = self.slackify(y_true,y_pred)
         print(len(y_pred))
         print(len(y_true))
-        return y_pred, y_true
+        return y_pred, y_true, self.balanced_accuracy(y_true,y_pred)
+
+    def balanced_accuracy(self,y_true,y_pred):
+        return balanced_accuracy_score(y_true,y_pred)
+
+    def slackify(self,y_true, y_pred, slack=20):
+        y_pred_slack = []
+        for i, yp in enumerate(y_pred):
+            # print(int(max(0,i-slack/2)),int(min(i+1+slack/2, len(y_true))))
+            if yp in y_true[int(max(0, i - slack / 2)): int(min(i + 1 + slack / 2, len(y_true)))]:
+                y_pred_slack.append(y_true[i])
+            else:
+                y_pred_slack.append(yp)
+        return y_pred_slack
 
     def compute_confusion_matrix(self, csv=None, pkl=None):
         """
@@ -147,7 +157,7 @@ class conf_matrix_artemis():
         # Labels array of dimensions (n_classes)
         labels = [mapping[0] for mapping in list(self.BEHAVIOR_LABELS.items()) if mapping[1] != 'none']
 
-        y_pred, y_true = self.get_predicted_true_labels(csv_data, pkl_data)
+        y_pred, y_true, bal_acc = self.get_predicted_true_labels(csv_data, pkl_data)
 
         conf_matrix = confusion_matrix(y_pred=y_pred, y_true=y_true, labels=labels,
                                        normalize='true')
@@ -157,7 +167,7 @@ class conf_matrix_artemis():
         if csv is None or pkl is None:
             self.confusion_matrix = conf_matrix
 
-        return conf_matrix
+        return conf_matrix, bal_acc
 
     def return_old_new(self, csv=None, pkl=None):
         """
@@ -196,7 +206,7 @@ class conf_matrix_artemis():
         old_csv, old_pkl = self.return_old_new()
 
 
-        old_confusion = self.compute_confusion_matrix(csv=old_csv, pkl=old_pkl)
+        old_confusion, bal_acc = self.compute_confusion_matrix(csv=old_csv, pkl=old_pkl)
 
 
 
@@ -214,7 +224,7 @@ class conf_matrix_artemis():
 
 
         #fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, ncols=1)
-        ax0.set_title("Old")
+        ax0.set_title("Old Testset: Slack = 20: Balanced Accuracy = {}".format(bal_acc))
         both_graph = sn.heatmap(old_confusion, xticklabels=beh, yticklabels=beh,
                                 annot=True, cmap="YlGnBu", ax=ax0, )
         both_graph.set_xticklabels(both_graph.get_xticklabels(),rotation=50)
