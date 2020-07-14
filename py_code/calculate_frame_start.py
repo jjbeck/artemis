@@ -62,7 +62,7 @@ def determine_last_frame(pickle_path,video_file,test_or_train, boot_round):
             pickl_pres = False
             pass
     self_start = (non_analyzed_frames['frame'].iloc[0])
-    print(f"Your current pickle file has {len(annot_pickle)} frames annotated")
+    #print(f"Your current pickle file has {len(annot_pickle)} frames annotated")
 
     return self_start
 
