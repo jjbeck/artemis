@@ -182,7 +182,7 @@ class show_prediction():
         self.total_frames = pd.DataFrame(data=frame_arr, columns=['frame'])
         self.video_file = self.video_file.replace(self.main_path,self.rsync_path)
         print(self.video_file)
-        self.frame_start = subprocess.check_output("ssh jbecke11@serrep6.clps.brown.edu ; source ~/andrew_holmes_pipe/bin/activate ; python3 /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code/calculate_frame_start.py -mp /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code -vf {} -tt {} -br {}".format(self.video_file,self.test_or_train,self.boot_round), shell=True)
+        self.frame_start = subprocess.check_output("ssh jbecke11@serrep6.clps.brown.edu . /home/jbecke11/andrew_holmes_pipe/bin/activate  python3 /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code/calculate_frame_start.py -mp /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/ -vf {} -tt {} -br {}".format(self.video_file,self.test_or_train,self.boot_round), shell=True)
         print(self.frame_start)
 
 
