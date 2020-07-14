@@ -12,12 +12,13 @@ import argparse
 import yaml
 import re
 import pims
-import matplotlib.pyplot as plt
+import subprocess
+from tkinter import *
 
 
 class show_prediction():
 
-    def __init__(self, main_path, boot_round, new_annot):
+    def __init__(self, main_path, rsync_path):
         """
         Initialize variables for script and dictionary with
         keys to behavior label. You can set up this
@@ -30,9 +31,8 @@ class show_prediction():
         self.forward = False
         self.random = False
         self.main_path = main_path
-        self.boot_round = boot_round
+        self.rsync_path = rsync_path
         self.font = cv2.FONT_HERSHEY_COMPLEX
-        self.new_annot = new_annot
         self.BEHAVIOR_LABELS = {
             0: "drink",
             2: "groom",
@@ -125,74 +125,83 @@ class show_prediction():
         If CSV file picked returns loaded dataframe with annotations
         Camera object
         """
-        try:
-            os.makedirs(self.main_path + "/videos_to_analyze")
-        except:
-            pass
-        try:
-            os.makedirs(self.main_path + "/videos_done")
-        except:
-            pass
-        try:
-            os.makedirs(self.main_path + '/videos_not_done')
+        ls = subprocess.check_output("ssh jbecke11@serrep6.clps.brown.edu ls {}".format(self.main_path) + "/videos_not_done/", shell=True)
+        video_files = ls.decode('utf-8').split('\n')
 
-        except:
-            if len(os.listdir(self.main_path + '/videos_not_done')) == 0:
-                ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
-                title_image4 = cv2.putText(ndarray, "Folder empty: transfer videos to folder. Press ESC.",
-                                           (20, 400), self.font,
-                                           0.7, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.imshow("Transfer Files", ndarray)
-                if cv2.waitKey(0) == ord('\x1b'):
-                    cv2.destroyAllWindows()
-                    sys.exit()
-            pass
+        self.root = tk.Tk()
 
-        try:
-            os.makedirs(self.main_path + '/csv_not_done')
-        except:
-            if len(os.listdir(self.main_path + '/csv_not_done')) == 0:
-                ndarray = np.full((640, 900, 3), 0, dtype=np.uint8)
-                title_image4 = cv2.putText(ndarray, "Folder empty: transfer csv to folder. Press ESC.",
-                                           (20, 400), self.font,
-                                           0.7, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.imshow("Transfer Files", ndarray)
-                if cv2.waitKey(0) == ord('\x1b'):
-                    cv2.destroyAllWindows()
-                    sys.exit()
-            pass
-        try:
-            os.makedirs(self.main_path + '/pickle_files/train')
-            os.makedirs(self.main_path + '/pickle_files/test')
-        except:
-            pass
+        for video in video_files:
+            button = Button(self.root,text=video, command=lambda x=video: self.pick_video(x))
+            button.pack()
+
+        self.root.mainloop()
         root = tk.Tk()
         root.withdraw()
         self.test_or_train = simpledialog.askstring(title="Test",
                                                  prompt="Add annotations to test or train dataset:")
 
-        self.pickle_path = self.main_path + "/pickle_files"
+        subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.main_path + "/config.yaml", self.rsync_path + "/config_yaml"), shell=True)
+        with open(self.rsync_path + "/config.yaml") as file:
+            config_param = yaml.load(file, Loader=yaml.FullLoader)
+            file.close()
+        self.boot_round = config_param["Boot Round"]
+        self.new_test_set_beh = config_param["Number of behaviors for Test Set"]["new"]
+        self.old_test_set_beh = config_param["Number of behaviors for Test Set"]["old"]
 
-        self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
-                                          title="Select VIDEO file")
+        if self.test_or_train == "test":
+            self.pickle_path = self.main_path + "/pickle_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
+            self.pickle_rsync = self.rsync_path + "/pick_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
+        else:
+            self.pickle_path = self.main_path + "/pickle_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
+            self.pickle_rsync = self.rsync_path + "/pick_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
+
+        #self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
+                                          #title="Select VIDEO file")
 
         self.csv_file = self.main_path + "/csv_not_done" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + ".csv"
+        self.csv_rsync = self.rsync_path + "/csv_not_done" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + ".csv"
 
-        if self.csv_file:
-            self.predictions = pd.read_csv(self.csv_file, names=['frame', 'pred'])
-        self.cap = pims.PyAVReaderTimed(self.video_file)
+        subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.csv_file, self.csv_rsync), shell=True)
+        subprocess.run("rsync --progress jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync), shell=True)
+        #subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync), shell=True)
+
+
+        self.predictions = pd.read_csv(self.csv_rsync, names=['frame', 'pred'])
+
+        try:
+            self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
+            self.prediction_state = True
+        except:
+            pass
+
+        self.cap = pims.PyAVReaderTimed(self.video_rsync)
 
         self.video_length = len(self.cap)
 
         frame_arr = np.arange(80,(self.video_length+1))
         self.total_frames = pd.DataFrame(data=frame_arr, columns=['frame'])
+        self.video_file = self.video_file.replace(self.main_path,self.rsync_path)
+        print(self.video_file)
+        self.frame_start = subprocess.check_output("ssh jbecke11@serrep6.clps.brown.edu python3 /home/jordan/Desktop/andrew_nih/andrew_nih_code/gui_code/artemis/py_code/calculate_frame_start.py -mp /home/jordan/Desktop/andrew_nih/ -vf {} -tt {} -br {}".format(self.video_file,self.test_or_train,self.boot_round), shell=True)
+        print(self.frame_start)
+
+
+    def pick_video(self,name):
+        video_file = name
+        self.video_file = (self.main_path + "/videos_not_done/{}".format(video_file))
+        self.video_rsync = self.rsync_path + "/videos_not_done/{}".format(video_file)
+        self.root.destroy()
+
 
     def determine_last_frame(self):
+
+        subprocess.check_output("python3 /home/jordan/Desktop/andrew_nih/andrew_nih_code/gui_code/artemis/py_code/calculate_frame_start.py"
+                                "-mp /home/jordan/Desktop/andrew_nih/ -vf {} -tt ".format(self.video_file) + self.test_or_train + " -br " + self.boot_round)
         """
         Determines last frame. Basically a save mechanism so you don't have to start over.
         :return:
         start_frame to pass annotation gui.
-        """
+        
         self.frames_analyzed = []
         self.exp_frames_analyzed_list = []
         self.start_frame = []
@@ -247,7 +256,7 @@ class show_prediction():
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
         return  self_start
-
+        """
     def choose_random_frame(self):
         a = self.non_analyzed_frames.sample()
         a = a["frame"]
@@ -471,7 +480,9 @@ class show_prediction():
             self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
         else:
             self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
+        subprocess.cmd("rsync {} jbecke11@serrep6.clps.brown.edu:{}".format(self.pickle_rsync, self.pickle_path), shell=True)
         self.done_with_video()
+
 
     def done_with_video(self):
         """
@@ -641,34 +652,27 @@ def main():
     parser = argparse.ArgumentParser(description="Add main path and frame length for video loop")
     parser.add_argument("-mp", "-main_path", help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
                                                   "Different experiments can be housed in separate folders under different Annot folder")
+    parser.add_argument("-rp", "-rsync_path",
+                        help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
+                             "Different experiments can be housed in separate folders under different Annot folder")
     parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100, help="number of frames to analyze in each loop: default is 100 frames")
     parser.add_argument("-ps", "-playback_speed", const=1, type=float, nargs="?", default=1,
                         help="playback speed of interval. Higher number speeds up playback. Lower number slows playback ")
     args = parser.parse_args()
-    return args.mp, args.f, args.ps
+    return args.mp, args.rp, args.f, args.ps
 
 
 if __name__ == "__main__":
 
-    mp, f, ps = main()
+    mp, rp, f, ps = main()
+    rp = rp + "Annot"
     mp = mp + "Annot"
-    if os.path.exists(mp + "/config.yaml"):
-        with open(mp + "/config.yaml") as file:
-            config_param = yaml.load(file, Loader=yaml.FullLoader)
-            file.close()
-            try:
-                artemis = show_prediction(mp,config_param["Boot Round"],False)
-            except:
-                print("Need to add main path where CSV,video and pickle files will be held.\n"
-                      "A folder called Annot will be save here and subsequent folders holding CSV, Video, and Pickle files will also be created or used.\n"
-                      "Use -mp followed by path when calling script in terminal.")
-                sys.exit(1)
-    else:
-        artemis = show_prediction(mp, 1,True)
+
+    artemis = show_prediction(mp, rp)
 
     artemis.show_intro()
     artemis.load_video_organize_dir()
-    artemis.loop_video(artemis.determine_last_frame(), f, ps)
+    #artemis.loop_video(artemis.determine_last_frame(), f, ps)
 
 #1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
 #Work on appending to config.yaml from bootstrap code side!

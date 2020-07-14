@@ -474,6 +474,7 @@ class show_prediction():
             self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
         self.done_with_video()
 
+
     def done_with_video(self):
         """
         Asks if you are done with video and diplays percentage of video analyzed.
@@ -636,6 +637,7 @@ class show_prediction():
                 os.rename(self.video_file,
                           self.main_path + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
                 sys.exit()
+
 
 def main():
 
