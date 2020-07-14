@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 import glob
 import numpy as np
+from __future__ import print_function
 
 def determine_last_frame(pickle_path,video_file,test_or_train, boot_round):
     """
