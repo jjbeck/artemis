@@ -150,10 +150,10 @@ class show_prediction():
 
         if self.test_or_train == "test":
             self.pickle_path = self.main_path + "/pickle_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
-            self.pickle_rsync = self.rsync_path + "/pick_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
+            self.pickle_rsync = self.rsync_path + "/pickle_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
         else:
             self.pickle_path = self.main_path + "/pickle_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
-            self.pickle_rsync = self.rsync_path + "/pick_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
+            self.pickle_rsync = self.rsync_path + "/pickle_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
 
         #self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
                                           #title="Select VIDEO file")
@@ -184,7 +184,8 @@ class show_prediction():
         print(self.video_file)
         self.frame_start = subprocess.check_output('ssh jbecke11@serrep6.clps.brown.edu ". /home/jbecke11/andrew_holmes_pipe/bin/activate && python3 /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code/calculate_frame_start.py -mp /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/ -vf {} -tt {} -br {}"'.format(self.video_file,self.test_or_train,self.boot_round), shell=True)
         self.frame_start = self.frame_start.decode('utf-8')
-        print(self.frame_start)
+        return self.frame_start
+
 
 
     def pick_video(self,name):
@@ -196,8 +197,7 @@ class show_prediction():
 
     def determine_last_frame(self):
 
-        subprocess.check_output("python3 /home/jordan/Desktop/andrew_nih/andrew_nih_code/gui_code/artemis/py_code/calculate_frame_start.py"
-                                "-mp /home/jordan/Desktop/andrew_nih/ -vf {} -tt ".format(self.video_file) + self.test_or_train + " -br " + self.boot_round)
+
         """
         Determines last frame. Basically a save mechanism so you don't have to start over.
         :return:
@@ -230,11 +230,12 @@ class show_prediction():
             self.prediction_state = True
         except:
             pass
+        """
 
         if self.test_or_train == 'test':
             try:
                 self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+                    self.pickle_rsync)
                 self.annot_pickle.sort_values(by='frame',inplace=True)
                 self.annot_pickle.drop_duplicates(subset=['frame'])
                 pickl_pres = True
@@ -245,7 +246,8 @@ class show_prediction():
         else:
             try:
                 self.annot_pickle = pd.read_pickle(
-                    self.pickle_path + "/train" + self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
+                    self.pickle_rsync)
+                print("sync")
                 self.annot_pickle.sort_values(by='frame', inplace=True)
                 self.annot_pickle.drop_duplicates(subset=['frame'])
                 pickl_pres = True
@@ -253,11 +255,11 @@ class show_prediction():
                 self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
                 pickl_pres = False
                 pass
-        self_start = (self.non_analyzed_frames['frame'].iloc[0])
+
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
-        return  self_start
-        """
+
+
     def choose_random_frame(self):
         a = self.non_analyzed_frames.sample()
         a = a["frame"]
@@ -478,10 +480,19 @@ class show_prediction():
         self.annot_pickle_final.sort_values(by='frame',inplace=True)
         self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
         if self.test_or_train == 'test':
-            self.annot_pickle_final.to_pickle(self.pickle_path + "/test"+self.video_file[self.video_file.rfind('/'):-4] + '_test.p')
+            self.annot_pickle_final.to_pickle(self.pickle_rsync)
+            subprocess.run("rsync --progress {} jbecke11@serrep6.clps.brown.edu:{}".format(
+                self.pickle_rsync, self.pickle_path),
+                           shell=True)
         else:
-            self.annot_pickle_final.to_pickle(self.pickle_path +"/train"+ self.video_file[self.video_file.rfind('/'):-4] + '_boot{}.p'.format(self.boot_round))
-        subprocess.cmd("rsync {} jbecke11@serrep6.clps.brown.edu:{}".format(self.pickle_rsync, self.pickle_path), shell=True)
+            self.annot_pickle_final.to_pickle(self.pickle_rsync)
+            subprocess.run("rsync --progress {} jbecke11@serrep6.clps.brown.edu:{}".format(
+                self.pickle_rsync, self.pickle_path ),
+                           shell=True)
+
+        a = pd.read_pickle(self.pickle_rsync)
+        print(a)
+
         self.done_with_video()
 
 
@@ -489,7 +500,7 @@ class show_prediction():
         """
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
-        """
+
 
         print("Updating Config File")
 
@@ -616,13 +627,13 @@ class show_prediction():
             documents = yaml.dump(final_test,file)
 
         file.close()
-
-        frame_total = len(self.video_length)
+        """
+        frame_total = self.video_length
         try:
             self.frames_analyzed.append(len(self.annot_data.index))
         except:
             pass
-        analyzed_frames = np.sum(self.frames_analyzed)
+        analyzed_frames = len(self.annot_pickle_final)
         ndarray2 = np.full((640, 900, 3), 0, dtype=np.uint8)
 
         title_image3 = cv2.putText(ndarray2, "You have analyzed {} percent of video".format(
@@ -672,8 +683,9 @@ if __name__ == "__main__":
     artemis = show_prediction(mp, rp)
 
     artemis.show_intro()
-    artemis.load_video_organize_dir()
-    #artemis.loop_video(artemis.determine_last_frame(), f, ps)
+    frame = int(artemis.load_video_organize_dir())
+    artemis.determine_last_frame()
+    artemis.loop_video(frame, f, ps)
 
 #1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
 #Work on appending to config.yaml from bootstrap code side!
