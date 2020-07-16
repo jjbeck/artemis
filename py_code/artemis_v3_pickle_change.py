@@ -432,7 +432,8 @@ class show_prediction():
                 return 9
 
         for pred in np.arange(start_frame, stop_frame + 1):
-            if pred in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values:
+            if pred in self.annot_pickle['frame'].values or pred in self.annot_data['frame'].values or pred not in self.non_analyzed_frames['frame'].values:
+
                 continue
             try:
                 preds.append(self.pred_dict[pred])
@@ -479,7 +480,7 @@ class show_prediction():
         """
         Asks if you are done with video and diplays percentage of video analyzed.
         Either moves video and csv file to done directory, or keeps in not_done directory.
-        """
+
 
         print("Updating Config File")
 
@@ -606,7 +607,7 @@ class show_prediction():
             documents = yaml.dump(final_test,file)
 
         file.close()
-
+        """
         frame_total = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         try:
             self.frames_analyzed.append(len(self.annot_data.index))
