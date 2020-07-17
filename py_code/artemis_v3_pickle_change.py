@@ -24,6 +24,7 @@ class show_prediction():
         :param main_path:
        :
         """
+        self.new_ind = 0
         self.back = False
         self.forward = False
         self.random = False
@@ -209,6 +210,7 @@ class show_prediction():
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
             self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
             self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed],sort=True).drop_duplicates(subset=['frame'],keep=False)
+            self.non_analyzed_frames.sort_values(by='frame', inplace=True)
 
         except:
             self.non_analyzed_frames = self.total_frames
@@ -241,6 +243,8 @@ class show_prediction():
                 self.annot_pickle = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
                 pickl_pres = False
                 pass
+        self.non_analyzed_frames.reset_index(inplace=True)
+        print(self.non_analyzed_frames)
         self_start = (self.non_analyzed_frames['frame'].iloc[0])
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
@@ -253,19 +257,18 @@ class show_prediction():
         self.loop_video(a,self.interval,self.playback_speed)
 
     def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
-        """
-        Loops over video with gui. This is where you update or confirm annotations.
-        :param start_frame:
-        :param interval:
-        :return:
-        Appends annotation to pandas dataframe
-        """
+        data_ind = 0
+        #print(f"You have analyzed {len(self.annot_data)} frames in this session\r", end="")
 
-        print(f"You have analyzed {len(self.annot_data)} frames in this session\r",end="")
         self.interval = interval
-        self.start_frame = (start_frame)
+        self.start_frame = start_frame
+        self.new_ind = (self.non_analyzed_frames['frame'].iloc[self.non_analyzed_frames.index[self.non_analyzed_frames['frame']==self.start_frame]])
+        self.new_ind = self.new_ind.index[0]
+       
+
         self.end_frame = self.start_frame + (self.interval)
         self.made_pred = True
+
         self.playback_speed = playback_speed
         if (self.cap.isOpened() == False):
             print("Error opening video stream or file")
@@ -275,14 +278,17 @@ class show_prediction():
                 ret, frame = self.cap.read()
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
-                    self.loop_video((self.start_frame + self.interval), self.interval)
-                frame_pred = cv2.putText(frame, "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) +  "   Pred: " +
+                    self.new_ind += self.interval
+
+                    self.loop_video((self.non_analyzed_frames['frame'].iloc[self.new_ind]), self.interval)
+                frame_pred = cv2.putText(frame,
+                                         "Current: Frame " + str(self.cap.get(cv2.CAP_PROP_POS_FRAMES)) + "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
                 cv2.imshow('image', frame)
-                cv2.waitKey(int((1 / (self.interval * self.playback_speed))*1000))
+                cv2.waitKey(int((1 / (self.interval * self.playback_speed)) * 1000))
             else:
                 if self.annotating == True:
                     frame_pred = cv2.putText(frame, "Loop Done.", (5, 50),
@@ -309,7 +315,14 @@ class show_prediction():
                         self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += interval
+                        try:
+                            self.loop_video((self.non_analyzed_frames['frame'].iloc[self.new_ind]), self.interval,
+                                            self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('\x1b'):
                         self.annotating = False
                         cv2.destroyAllWindows()
@@ -319,56 +332,74 @@ class show_prediction():
                         self.random = False
                         self.forward = False
                         self.back = False
-                        self.loop_video(self.start_frame, self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.non_analyzed_frames['frame'].iloc[self.new_ind]), self.interval,
+                                            self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('Q'):
                         self.back = True
-                        self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
+                        try:
+                            self.loop_video(self.start_frame - self.interval, self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('S'):
                         self.forward = True
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        try:
+                            self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
-                            '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
+                        '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
                         self.det_pred = int(chr(k))
                         self.update_annotations()
                         self.forward = False
                         self.back = False
                         self.random = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += interval
+                        try:
+                            self.loop_video((self.non_analyzed_frames['frame'].iloc[self.new_ind]), self.interval,
+                                            self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
                     elif k & 0xFF == ord('y'):
                         self.update_annotations()
                         self.forward = False
                         self.back = False
                         self.random = False
-                        self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
+                        self.new_ind += interval
+                        try:
+                            self.loop_video((self.non_analyzed_frames['frame'].iloc[self.new_ind]), self.interval,
+                                            self.playback_speed)
+                        except:
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
+
                     elif k & 0xFF == ord('r'):
                         self.random = True
                         self.choose_random_frame()
+
                     elif k & 0xFF == ord('s'):
                         self.forward = True
-                        self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
-                    elif k & 0xFF == ord('p'):
-                        print("picking")
-                        j = cv2.waitKey(0)
-                        beh = self.pick_keys[j]
-                        con_data = pd.concat([self.annot_pickle, self.annot_data], sort=True)
-                        non_analyzed_frames = pd.concat([self.predictions, con_data, con_data]).drop_duplicates(
-                            subset=['frame'], keep='first')
-                        beh_exist = non_analyzed_frames.where(non_analyzed_frames['pred'] == beh)
-                        beh_exist = beh_exist.dropna()
                         try:
-                            a = beh_exist.sample()
-                            a = a["frame"]
-                            a = int(a)
-                            self.loop_video(a, self.interval, self.playback_speed)
+                            self.loop_video((self.start_frame + 1000), self.interval, self.playback_speed)
                         except:
-                            print("No {} left.".format(self.BEHAVIOR_LABELS[beh]))
-                            self.loop_video(self.start_frame, self.interval, self.playback_speed)
+                            cv2.destroyAllWindows()
+                            self.det_pred = None
+                            self.save_annotations_as_pickle()
 
-        self.annotating = False
-        cv2.destroyAllWindows()
-        self.det_pred = None
-        self.save_annotations_as_pickle()
+                    elif k & 0xFF == ord('p'):
+                        self.choose_frame()
 
     def choose_frame(self):
         beh = input("Enter behavior you would like to find: ")
