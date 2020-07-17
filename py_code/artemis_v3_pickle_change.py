@@ -258,13 +258,13 @@ class show_prediction():
 
     def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
         data_ind = 0
-        #print(f"You have analyzed {len(self.annot_data)} frames in this session\r", end="")
+        print(f"You have analyzed {len(self.annot_data)} frames in this session\r", end="")
 
         self.interval = interval
         self.start_frame = start_frame
         self.new_ind = (self.non_analyzed_frames['frame'].iloc[self.non_analyzed_frames.index[self.non_analyzed_frames['frame']==self.start_frame]])
         self.new_ind = self.new_ind.index[0]
-       
+
 
         self.end_frame = self.start_frame + (self.interval)
         self.made_pred = True
@@ -399,7 +399,22 @@ class show_prediction():
                             self.save_annotations_as_pickle()
 
                     elif k & 0xFF == ord('p'):
-                        self.choose_frame()
+                        print("picking")
+                        j = cv2.waitKey(0)
+                        beh = self.pick_keys[j]
+                        con_data = pd.concat([self.annot_pickle, self.annot_data], sort=True)
+                        non_analyzed_frames = pd.concat([self.predictions, con_data, con_data]).drop_duplicates(
+                            subset=['frame'], keep='first')
+                        beh_exist = non_analyzed_frames.where(non_analyzed_frames['pred'] == beh)
+                        beh_exist = beh_exist.dropna()
+                        try:
+                            a = beh_exist.sample()
+                            a = a["frame"]
+                            a = int(a)
+                            self.loop_video(a, self.interval, self.playback_speed)
+                        except:
+                            print("No {} left.".format(self.BEHAVIOR_LABELS[beh]))
+                            self.loop_video(self.start_frame, self.interval, self.playback_speed)
 
     def choose_frame(self):
         beh = input("Enter behavior you would like to find: ")
