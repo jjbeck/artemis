@@ -202,7 +202,7 @@ class show_prediction():
         Determines last frame. Basically a save mechanism so you don't have to start over.
         :return:
         start_frame to pass annotation gui.
-        
+        """
         self.frames_analyzed = []
         self.exp_frames_analyzed_list = []
         self.start_frame = []
@@ -230,7 +230,7 @@ class show_prediction():
             self.prediction_state = True
         except:
             pass
-        """
+
 
         if self.test_or_train == 'test':
             try:

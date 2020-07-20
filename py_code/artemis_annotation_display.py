@@ -2,6 +2,7 @@ import cv2
 import tkinter as tk
 from tkinter import *
 from tkinter import simpledialog
+from tkinter.filedialog import askopenfilename
 
 class display():
 
@@ -54,25 +55,33 @@ class display():
                 ready = True
         cv2.destroyAllWindows()
 
-    def pick_file(self, video_files, main_path, rsync_path):
-        self.main_path=main_path
-        self.rsync_path=rsync_path
-        self.root = tk.Tk()
-        for video in video_files:
-            button = Button(self.root, text=video, command=lambda x=video: self.pick_video(x))
-            button.pack()
-        self.root.mainloop()
+    def pick_file(self, main_path, video_files=None, rsync_path=None):
+        if rsync_path is not None:
+            self.root = tk.Tk()
+            for video in video_files:
+                button = Button(self.root, text=video, command=lambda x=video: self.pick_video(x, main_path, rsync_path))
+                button.pack()
+            self.root.mainloop()
+            root = tk.Tk()
+            root.withdraw()
+            test_or_train = simpledialog.askstring(title="Test",
+                                                        prompt="Add annotations to test or train dataset:")
+            return self.video_file, self.video_rsync, test_or_train
+
+    def pick_video(self,name, main_path, rsync_path):
+        video_file = name
+        self.video_file = (main_path + "/videos_not_done/{}".format(video_file))
+        self.video_rsync = (rsync_path + "/videos_not_done/{}".format(video_file))
+        self.root.destroy()
+
+    def choose_local_file(self, main_path):
         root = tk.Tk()
         root.withdraw()
-        self.test_or_train = simpledialog.askstring(title="Test",
-                                                    prompt="Add annotations to test or train dataset:")
-        return self.video_file, self.video_rsync, self.test_or_train
-
-    def pick_video(self,name):
-        video_file = name
-        self.video_file = (self.main_path + "/videos_not_done/{}".format(video_file))
-        self.video_rsync = self.rsync_path + "/videos_not_done/{}".format(video_file)
-        self.root.destroy()
+        test_or_train = simpledialog.askstring(title="Test",
+                                                        prompt="Add annotations to test or train dataset:")
+        video_file = askopenfilename(initialdir=main_path,
+                                          title="Select VIDEO file")
+        return video_file, test_or_train
 
     #def video_loop(self, img, x_text, y_text, wait_key_time):
 
