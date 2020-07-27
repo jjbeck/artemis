@@ -23,7 +23,8 @@ class display:
             6: "rest",
             7: "walk",
             8: "eathand",
-            9: "none"
+            9: "none",
+            10: "N/A"
         }
         self.font = cv2.FONT_HERSHEY_COMPLEX
 
@@ -104,14 +105,14 @@ class display:
                                      title="Select VIDEO file")
         return video_file, test_or_train
 
-    def setup_video_properties(self, video, csv_path):
+    def setup_video_properties(self, video, csv_df):
         """
         Sets values to attribute variables.
         :param video: Video array.
         :param csv_path: Path to csv file containing predictions.
         """
         # TODO: Make sure frame types are set to int-64.
-        self.csv = pd.read_csv(csv_path)
+        self.csv = csv_df
         self.csv.columns = ['frame', 'pred']
         self.max_frame = len(video)
         self.max_labelled = len(self.csv)
@@ -133,10 +134,6 @@ class display:
         for i in range(start, end_frame):
             img = video[i]
             prediction_number = self.csv.iloc[i]['pred']
-            if prediction_number == 10:
-                # self.video_loop(video, (start + interval), x_text, y_text, wait_key_time, csv, interval)
-                continue
-
             # Prediction is N/A by default. If prediction exists (index is within number of labelled frames),
             #  prediction string is changed.
             if i < self.max_labelled:
@@ -169,9 +166,9 @@ class display:
         cv2.namedWindow("Ins1")
         cv2.imshow("Ins1", nd_array)
 
-    def done_with_video(self, total_frames, pickle_path):
+    def done_with_video(self, total_frames, pickle_df):
 
-        total_annotated_overall = len(pd.read_pickle(pickle_path))
+        total_annotated_overall = len(pickle_df)
         percent_analyzed = (total_annotated_overall / total_frames) * 100
 
         ndarray2 = np.full((640, 900, 3), 0, dtype=np.uint8)

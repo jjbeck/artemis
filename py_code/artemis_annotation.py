@@ -1,9 +1,12 @@
+import pickle
+
 import cv2
 import pandas as pd
 import artemis_annotation_display
 import artemis_annotation_calculation
 import subprocess
 import sys
+import os
 import pims
 import numpy as np
 
@@ -238,8 +241,6 @@ class artemis:
         :return: Data frame ['frame', 'label'] of frames that have not been labelled.
         """
 
-        # Read pickle file
-        self.pickle_data = pd.read_pickle(final_pickle_path)
         # Set type of frame to int64 so that duplicates can be detected.
         type_replaced = self.pickle_data['frame'].astype(dtype='int64')
         self.pickle_data = self.pickle_data.assign(frame=type_replaced)
@@ -266,20 +267,30 @@ class artemis:
         self.cap = pims.PyAVReaderTimed(video_path)
 
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
-        df_total_frames = pd.Series(range(1, total_frames))
         # Save dataframe of predictions as attribute, otherwise fill it with 'N/A' entries.
-        if csv_path is not None:
-            self.csv_path = csv_path
+        self.csv_path = csv_path
+        # This try-catch statement tries to read from an existing csv file, otherwise makes a default dataframe.
+        try:
             self.csv_df = pd.read_csv(self.csv_path, encoding=self.encoding, dtype='int64')
+        except:
+            self.csv_df = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
+        # If not all frames are labelled, fill the rest with 'N/A'.
+        non_labelled_frames = total_frames - len(self.csv_df)
+        non_labelled_frames_df = pd.Series(range(1, non_labelled_frames + 1))
+        # Note: error will occur if names of columns on dict below don't match column names of csv df.
+        default_data = {'frame': non_labelled_frames_df, 'pred': [10] * non_labelled_frames}
+        if non_labelled_frames > 0:
+            default_data_df = pd.DataFrame(default_data)
+            self.csv_df.columns = ['frame', 'pred']
+            self.csv_df = self.csv_df.append(default_data_df)
+
+        self.display.setup_video_properties(video=self.cap, csv_df=self.csv_df)
+        # Read pickle file
+        if os.path.getsize(pickle_path) > 0:
+            self.pickle_data = pd.read_pickle(pickle_path)
         else:
-            default_data = {'frame': df_total_frames, 'pred': ['N/A'] * total_frames}
-            self.csv_df = pd.DataFrame(columns=['frame', 'pred'], dtype='int64').append(default_data)
-        self.csv_df.columns = ['frame', 'pred']
-
-        self.display.setup_video_properties(video=self.cap, csv_path=self.csv_path)
-        self.pickle_data = pd.read_pickle(pickle_path)
+            print(f"Pickle path {pickle_path} empty.")
         self.pickle_data.columns = ['frame', 'label']
-
         return
 
     def annotate_video(self, usable_frames, pickle_path, predictions_csv, interval=30, fps=30):
@@ -293,7 +304,7 @@ class artemis:
         :param predictions_csv: Path to csv prediction file.
         """
         # We read the predictions from the csv file into [frame, prediction_label] dataframe
-        predictions = pd.read_csv(predictions_csv, encoding=self.encoding)
+        predictions = self.csv_df
         self.display.intro()
         # display interval with prediction
         video = self.cap
@@ -330,7 +341,7 @@ class artemis:
                 annotate = False
         frames_not_annotated = len(usable_frames)
         total_frames = len(video)
-        user_input = self.display.done_with_video(total_frames, pickle_path)
+        user_input = self.display.done_with_video(total_frames, self.pickle_data)
         self.save_pickle_and_exit(pickle_path, user_input=user_input)
 
     def increment_frame_header(self, interval, usable_frames):
