@@ -37,6 +37,8 @@ class artemis:
         # Pickle dataframe that gets reset after every session. Is used to save into pickle files.
         self.pickle_data = pd.DataFrame(columns=['frame', 'label'], dtype='int64')
         self.pickle_cache = pd.DataFrame(columns=['frame', 'label'], dtype='int64')
+        # Set to length of frames that have not yet been labelled.
+        self.frames_labelled_in_session = 0
         # Set main path to files
         self.main_path = main_path
         # Set path to local computer if there is one
@@ -190,13 +192,13 @@ class artemis:
         self.pickle_cache = self.pickle_cache.append(data_df, ignore_index=True)
         print(self.pickle_cache)
 
-        self.increment_frame_header(interval, usable_frames)
+        indices_in_usable_labelled = usable_frames[usable_frames['frame'].isin(frames_labelled)].index
         # Drop labelled frames from usable frames after incrementing header.
-        indices_in_usable_labelled = np.where(usable_frames['frame'].isin(frames_labelled))[0]
-        if indices_in_usable_labelled.size == 0:
-            return
+        if indices_in_usable_labelled.size != 0:
+            usable_frames.drop(indices_in_usable_labelled, inplace=True)
 
-        usable_frames.drop(indices_in_usable_labelled, inplace=True)
+        self.calculate_header(interval, usable_frames)
+
 
     def organize_files(self):
 
@@ -250,7 +252,7 @@ class artemis:
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
 
         # Total number of frames
-        df_total_frames = pd.Series(range(1, total_frames))
+        df_total_frames = pd.Series(range(0, total_frames + 1))
 
         # Find frames that have yet been annotated.
         not_analyzed = pd.concat([self.pickle_data['frame'], df_total_frames]).drop_duplicates(keep=False).reset_index()
@@ -305,6 +307,7 @@ class artemis:
         """
         # We read the predictions from the csv file into [frame, prediction_label] dataframe
         predictions = self.csv_df
+        self.frames_labelled_in_session = len(usable_frames)
         self.display.intro()
         # display interval with prediction
         video = self.cap
@@ -341,17 +344,19 @@ class artemis:
                 annotate = False
         frames_not_annotated = len(usable_frames)
         total_frames = len(video)
-        user_input = self.display.done_with_video(total_frames, self.pickle_data)
+        self.frames_labelled_in_session = self.frames_labelled_in_session - len(usable_frames)
+        percent = 100 * (self.frames_labelled_in_session + len(self.pickle_data)) / total_frames
+        user_input = self.display.done_with_video(total_frames, self.pickle_data, percent=percent)
         self.save_pickle_and_exit(pickle_path, user_input=user_input)
 
-    def increment_frame_header(self, interval, usable_frames):
+    def calculate_header(self, interval, usable_frames):
         """
         Increments frame header to next usable frame.
         :param interval: Amount of frames to loop through from header.
         :param usable_frames: Dataframe of usable frames.
         """
         tmp = self.frame_header
-        self.frame_header = usable_frames['frame'].iloc[self.frame_header + interval]
+        self.frame_header = usable_frames['frame'].iloc[0]
         print(f'Incrementing header from {tmp} to {self.frame_header}')
 
     def save_pickle_and_exit(self, pickle_path, user_input=None):
@@ -377,6 +382,6 @@ class artemis:
         pd.to_pickle(self.pickle_data, pickle_path)
         # Reset pickle. Not very useful, but why not I guess.
         self.pickle_cache = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
-        print(pd.read_pickle(pickle_path))
+        print(f'You labelled {self.frames_labelled_in_session} frames this session.')
         sys.exit()
 

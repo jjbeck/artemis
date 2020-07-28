@@ -166,10 +166,13 @@ class display:
         cv2.namedWindow("Ins1")
         cv2.imshow("Ins1", nd_array)
 
-    def done_with_video(self, total_frames, pickle_df):
+    def done_with_video(self, total_frames, pickle_df, percent=None):
 
         total_annotated_overall = len(pickle_df)
         percent_analyzed = (total_annotated_overall / total_frames) * 100
+
+        if percent is not None:
+            percent_analyzed = percent
 
         ndarray2 = np.full((640, 900, 3), 0, dtype=np.uint8)
 
