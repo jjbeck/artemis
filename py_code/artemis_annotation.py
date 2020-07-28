@@ -9,6 +9,7 @@ import sys
 import os
 import pims
 import numpy as np
+import traceback
 
 
 class artemis:
@@ -123,8 +124,7 @@ class artemis:
         #   usable frames, which is also undefined behavior.
         if letter_pressed == ord(' '):
             # This exception will be caught in the loop and causes the annotator to restart the loop.
-            raise KeyError("Space-bar clicked. Restarting loop.")
-
+            raise StopIteration("Spacebar.")
         # Esc pressed. Exception caught in loop.
         if letter_pressed == ord('\x1b'):
             raise KeyboardInterrupt('Escape key pressed.')
@@ -198,7 +198,6 @@ class artemis:
             usable_frames.drop(indices_in_usable_labelled, inplace=True)
 
         self.calculate_header(interval, usable_frames)
-
 
     def organize_files(self):
 
@@ -295,7 +294,7 @@ class artemis:
         self.pickle_data.columns = ['frame', 'label']
         return
 
-    def annotate_video(self, usable_frames, pickle_path, predictions_csv, interval=30, fps=30):
+    def annotate_video(self, usable_frames, pickle_path, predictions_csv, interval=None, fps=30):
         """
         Begins a loop at the first usable frame.
         Starts by displaying intro, then calls video loop at header of usable frames.
@@ -305,7 +304,10 @@ class artemis:
         :param pickle_path: Path to pickle file
         :param predictions_csv: Path to csv prediction file.
         """
-        # We read the predictions from the csv file into [frame, prediction_label] dataframe
+
+        if interval is None:
+            interval = self.interval
+
         predictions = self.csv_df
         self.frames_labelled_in_session = len(usable_frames)
         self.display.intro()
@@ -316,7 +318,6 @@ class artemis:
         annotate = True
         while annotate:
             # Loop at header.
-            print(f'Frame header looping at: {self.frame_header}')
             self.display.video_loop(video=video, start=self.frame_header, csv_path=predictions_csv, interval=interval,
                                     fps=fps)
             usr_in = cv2.waitKeyEx(0)
@@ -329,11 +330,11 @@ class artemis:
             except TypeError:
                 print(f"Incorrect key pressed. Key: {usr_in} - Masked: {masked}")
                 continue
+            except StopIteration:
+                print("Space bar clicked.")
             except KeyError as e:
-                print(f"Key pressed not valid OR you clicked space bar :). Restarting loop. Error: {e.__cause__}")
-                # Note that on wrong keypress, frame header is not incremented as to repeat frame
-                #  that was labelled incorrectly.
-                continue
+                tb = traceback.format_exc()
+                print(tb)
             except KeyboardInterrupt:
                 print("ESC pressed. Done with video, proceeding to save.")
                 cv2.destroyAllWindows()
@@ -355,9 +356,23 @@ class artemis:
         :param interval: Amount of frames to loop through from header.
         :param usable_frames: Dataframe of usable frames.
         """
-        tmp = self.frame_header
-        self.frame_header = usable_frames['frame'].iloc[0]
-        print(f'Incrementing header from {tmp} to {self.frame_header}')
+        # The below shenanigans are to prevent labelling already labelled frames.
+        tmp_header = self.frame_header
+        new_header = self.frame_header + interval
+        # Access frame_header + interval in usable_frames. if not in, split dataframe in two, and get
+        frame_at_new_header = usable_frames[usable_frames['frame'] == (new_header)]
+
+        if frame_at_new_header.empty:
+            smaller_than = usable_frames[usable_frames['frame'] < new_header]
+            closest_lower = smaller_than.iloc[-1]
+            bigger_than = usable_frames[usable_frames['frame'] >= new_header]
+            closest_bigger = bigger_than.iloc[0]
+            closest_overall = min(abs(closest_bigger - new_header), abs(closest_lower - new_header))
+            self.frame_header = closest_overall
+        else:
+            self.frame_header = frame_at_new_header.iloc[0]['frame']
+        #  the first and last of each. Check which is closer, and set frame header to that.
+        print(f'HEADER: {tmp_header} --> {self.frame_header}')
 
     def save_pickle_and_exit(self, pickle_path, user_input=None):
         """
@@ -383,5 +398,5 @@ class artemis:
         # Reset pickle. Not very useful, but why not I guess.
         self.pickle_cache = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
         print(f'You labelled {self.frames_labelled_in_session} frames this session.')
+        print(f'There are {len(self.pickle_data)} frames labelled total.')
         sys.exit()
-

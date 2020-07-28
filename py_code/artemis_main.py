@@ -7,7 +7,7 @@ class artemis:
         print("artemis loaded")
 
     def annotate(self, annotation_path):
-        a = artemis_annotation.artemis(annotation_path, interval=1, encoding='iso-8859-1')
+        a = artemis_annotation.artemis(annotation_path, interval=20, encoding='iso-8859-1')
         video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path = a.organize_files()
         print(f'Video path: {video_path}')
         final_pickle_path = pickle_path
