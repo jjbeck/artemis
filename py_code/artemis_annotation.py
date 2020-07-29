@@ -158,7 +158,7 @@ class artemis:
             print(f'Looking for behavior: {behavior}')
             annotation = self.pick_keys.get(usr_in)
             # All frames that are predicted to be annotation
-            predicted_frames = self.csv_df.loc[self.csv_df['pred'] == 1]['frame']
+            predicted_frames = self.csv_df.loc[self.csv_df['pred'] == annotation]['frame']
             if predicted_frames.empty:
                 print("No annotations of that type have been predicted.")
                 raise KeyError
@@ -329,19 +329,23 @@ class artemis:
                 self.handle_input.get(masked)(masked, usable_frames, interval)
             except TypeError:
                 print(f"Incorrect key pressed. Key: {usr_in} - Masked: {masked}")
+                print(traceback.format_exc())
                 continue
             except StopIteration:
                 print("Space bar clicked.")
+                continue
             except KeyError as e:
                 tb = traceback.format_exc()
                 print(tb)
             except KeyboardInterrupt:
                 print("ESC pressed. Done with video, proceeding to save.")
                 cv2.destroyAllWindows()
+                print(traceback.format_exc())
                 annotate = False
             # Increment header by interval, except we only look over frames that are usable.
-            except IndexError:
+            except IndexError as e:
                 print("IndexError: Reached end of usable frames.")
+                print(traceback.format_exc())
                 annotate = False
         frames_not_annotated = len(usable_frames)
         total_frames = len(video)
@@ -352,23 +356,37 @@ class artemis:
 
     def calculate_header(self, interval, usable_frames):
         """
-        Increments frame header to next usable frame.
+        Increments frame header to next usable frame. If no usable frame at header + interval,
+        goes to closest frame to the destination header.
         :param interval: Amount of frames to loop through from header.
         :param usable_frames: Dataframe of usable frames.
         """
         # The below shenanigans are to prevent labelling already labelled frames.
         tmp_header = self.frame_header
         new_header = self.frame_header + interval
-        # Access frame_header + interval in usable_frames. if not in, split dataframe in two, and get
+
         frame_at_new_header = usable_frames[usable_frames['frame'] == (new_header)]
 
+        # If the new header does not have a frame in usable frames, we take use the closest frame.
         if frame_at_new_header.empty:
             smaller_than = usable_frames[usable_frames['frame'] < new_header]
-            closest_lower = smaller_than.iloc[-1]
             bigger_than = usable_frames[usable_frames['frame'] >= new_header]
-            closest_bigger = bigger_than.iloc[0]
-            closest_overall = min(abs(closest_bigger - new_header), abs(closest_lower - new_header))
-            self.frame_header = closest_overall
+
+            if smaller_than.empty and bigger_than.empty:
+                raise IndexError("No usable frames left.")
+            elif smaller_than.empty:
+                print('No frames beneath.')
+                closest_bigger = bigger_than.iloc[0]['frame']
+                self.frame_header = closest_bigger
+            elif bigger_than.empty:
+                print('No frames above.')
+                closest_lower = smaller_than.iloc[-1]['frame']
+                self.frame_header = closest_lower
+            else:
+                closest_lower = smaller_than.iloc[-1]['frame']
+                closest_bigger = bigger_than.iloc[0]['frame']
+                closest_overall = min(abs(closest_bigger - new_header), abs(closest_lower - new_header))
+                self.frame_header = closest_overall
         else:
             self.frame_header = frame_at_new_header.iloc[0]['frame']
         #  the first and last of each. Check which is closer, and set frame header to that.
