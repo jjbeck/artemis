@@ -46,16 +46,16 @@ class show_prediction():
             9: "none"
         }
         self.pick_keys = {
-            48:0,
-            49:1,
-            50:2,
-            51:3,
-            52:4,
-            53:5,
-            54:6,
-            55:7,
-            56:8,
-            57:9,
+            48: 0,
+            49: 1,
+            50: 2,
+            51: 3,
+            52: 4,
+            53: 5,
+            54: 6,
+            55: 7,
+            56: 8,
+            57: 9,
         }
         # empty dataframe to store annotations for session
         self.annot_data = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
@@ -125,22 +125,25 @@ class show_prediction():
         If CSV file picked returns loaded dataframe with annotations
         Camera object
         """
-        ls = subprocess.check_output("ssh jbecke11@serrep6.clps.brown.edu ls {}".format(self.main_path) + "/videos_not_done/", shell=True)
+        ls = subprocess.check_output(
+            "ssh jbecke11@serrep6.clps.brown.edu ls {}".format(self.main_path) + "/videos_not_done/", shell=True)
         video_files = ls.decode('utf-8').split('\n')
 
         self.root = tk.Tk()
 
         for video in video_files:
-            button = Button(self.root,text=video, command=lambda x=video: self.pick_video(x))
+            button = Button(self.root, text=video, command=lambda x=video: self.pick_video(x))
             button.pack()
 
         self.root.mainloop()
         root = tk.Tk()
         root.withdraw()
         self.test_or_train = simpledialog.askstring(title="Test",
-                                                 prompt="Add annotations to test or train dataset:")
+                                                    prompt="Add annotations to test or train dataset:")
 
-        subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.main_path + "/config.yaml", self.rsync_path + "/config_yaml"), shell=True)
+        subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.main_path + "/config.yaml",
+                                                                            self.rsync_path + "/config_yaml"),
+                       shell=True)
         with open(self.rsync_path + "/config.yaml") as file:
             config_param = yaml.load(file, Loader=yaml.FullLoader)
             file.close()
@@ -149,27 +152,37 @@ class show_prediction():
         self.old_test_set_beh = config_param["Number of behaviors for Test Set"]["old"]
 
         if self.test_or_train == "test":
-            self.pickle_path = self.main_path + "/pickle_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
-            self.pickle_rsync = self.rsync_path + "/pickle_files/test" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_test.p"
+            self.pickle_path = self.main_path + "/pickle_files/test" + self.video_file[
+                                                                       self.video_file.rfind('/'):self.video_file.rfind(
+                                                                           ".")] + "_test.p"
+            self.pickle_rsync = self.rsync_path + "/pickle_files/test" + self.video_file[self.video_file.rfind(
+                '/'):self.video_file.rfind(".")] + "_test.p"
         else:
-            self.pickle_path = self.main_path + "/pickle_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
-            self.pickle_rsync = self.rsync_path + "/pickle_files/train" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
+            self.pickle_path = self.main_path + "/pickle_files/train" + self.video_file[self.video_file.rfind(
+                '/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
+            self.pickle_rsync = self.rsync_path + "/pickle_files/train" + self.video_file[self.video_file.rfind(
+                '/'):self.video_file.rfind(".")] + "_boot{}.p".format(self.boot_round)
 
-        #self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
-                                          #title="Select VIDEO file")
+        # self.video_file = askopenfilename(initialdir=self.main_path + "/videos_not_done",
+        # title="Select VIDEO file")
 
-        self.csv_file = self.main_path + "/csv_not_done" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + ".csv"
-        self.csv_rsync = self.rsync_path + "/csv_not_done" + self.video_file[self.video_file.rfind('/'):self.video_file.rfind(".")] + ".csv"
+        self.csv_file = self.main_path + "/csv_not_done" + self.video_file[
+                                                           self.video_file.rfind('/'):self.video_file.rfind(
+                                                               ".")] + ".csv"
+        self.csv_rsync = self.rsync_path + "/csv_not_done" + self.video_file[
+                                                             self.video_file.rfind('/'):self.video_file.rfind(
+                                                                 ".")] + ".csv"
 
         subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.csv_file, self.csv_rsync), shell=True)
-        subprocess.run("rsync --progress jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync), shell=True)
-        #subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync), shell=True)
-
+        subprocess.run(
+            "rsync --progress jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync),
+            shell=True)
+        # subprocess.run("rsync jbecke11@serrep6.clps.brown.edu:{} {}".format(self.video_file, self.video_rsync), shell=True)
 
         self.predictions = pd.read_csv(self.csv_rsync, names=['frame', 'pred'])
 
         try:
-            self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
+            self.pred_dict = pd.Series(self.predictions.pred.values, index=self.predictions.frame).to_dict()
             self.prediction_state = True
         except:
             pass
@@ -178,25 +191,23 @@ class show_prediction():
 
         self.video_length = len(self.cap)
 
-        frame_arr = np.arange(80,(self.video_length+1))
+        frame_arr = np.arange(80, (self.video_length + 1))
         self.total_frames = pd.DataFrame(data=frame_arr, columns=['frame'])
-        self.video_file = self.video_file.replace(self.main_path,self.rsync_path)
+        self.video_file = self.video_file.replace(self.main_path, self.rsync_path)
         print(self.video_file)
-        self.frame_start = subprocess.check_output('ssh jbecke11@serrep6.clps.brown.edu ". /home/jbecke11/andrew_holmes_pipe/bin/activate && python3 /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code/calculate_frame_start.py -mp /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/ -vf {} -tt {} -br {}"'.format(self.video_file,self.test_or_train,self.boot_round), shell=True)
+        self.frame_start = subprocess.check_output(
+            'ssh jbecke11@serrep6.clps.brown.edu ". /home/jbecke11/andrew_holmes_pipe/bin/activate && python3 /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/artemis/py_code/calculate_frame_start.py -mp /media/data_cifs_lrs/projects/prj_nih/prj_andrew_holmes/ -vf {} -tt {} -br {}"'.format(
+                self.video_file, self.test_or_train, self.boot_round), shell=True)
         self.frame_start = self.frame_start.decode('utf-8')
         return self.frame_start
 
-
-
-    def pick_video(self,name):
+    def pick_video(self, name):
         video_file = name
         self.video_file = (self.main_path + "/videos_not_done/{}".format(video_file))
         self.video_rsync = self.rsync_path + "/videos_not_done/{}".format(video_file)
         self.root.destroy()
 
-
     def determine_last_frame(self):
-
 
         """
         Determines last frame. Basically a save mechanism so you don't have to start over.
@@ -207,36 +218,37 @@ class show_prediction():
         self.exp_frames_analyzed_list = []
         self.start_frame = []
         self.prediction_state = False
-        for file in glob.glob(self.pickle_path + "/train"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
+        for file in glob.glob(self.pickle_path + "/train" + self.video_file[self.video_file.rfind('/'):-4] + '*'):
             self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
+            self.annot_pickle.sort_values(by='frame', inplace=True)
             self.exp_frames_analyzed_list.append(self.annot_pickle)
             self.frames_analyzed.append(len(self.annot_pickle.index))
-        for file in glob.glob(self.pickle_path + "/test"+ self.video_file[self.video_file.rfind('/'):-4] + '*'):
+        for file in glob.glob(self.pickle_path + "/test" + self.video_file[self.video_file.rfind('/'):-4] + '*'):
             self.annot_pickle = pd.read_pickle(file)
-            self.annot_pickle.sort_values(by='frame',inplace=True)
+            self.annot_pickle.sort_values(by='frame', inplace=True)
             self.exp_frames_analyzed_list.append(self.annot_pickle)
             self.frames_analyzed.append(len(self.annot_pickle.index))
         try:
             self.exp_frames_analyzed = pd.concat(self.exp_frames_analyzed_list, ignore_index=True)
             self.exp_frames_analyzed['frame'] = self.exp_frames_analyzed['frame'].astype('int32')
-            self.non_analyzed_frames = pd.concat([self.total_frames,self.exp_frames_analyzed,self.exp_frames_analyzed],sort=True).drop_duplicates(subset=['frame'],keep=False)
+            self.non_analyzed_frames = pd.concat(
+                [self.total_frames, self.exp_frames_analyzed, self.exp_frames_analyzed], sort=True).drop_duplicates(
+                subset=['frame'], keep=False)
 
         except:
             self.non_analyzed_frames = self.total_frames
             pass
         try:
-            self.pred_dict = pd.Series(self.predictions.pred.values,index=self.predictions.frame).to_dict()
+            self.pred_dict = pd.Series(self.predictions.pred.values, index=self.predictions.frame).to_dict()
             self.prediction_state = True
         except:
             pass
-
 
         if self.test_or_train == 'test':
             try:
                 self.annot_pickle = pd.read_pickle(
                     self.pickle_rsync)
-                self.annot_pickle.sort_values(by='frame',inplace=True)
+                self.annot_pickle.sort_values(by='frame', inplace=True)
                 self.annot_pickle.drop_duplicates(subset=['frame'])
                 pickl_pres = True
             except:
@@ -258,15 +270,13 @@ class show_prediction():
 
         print(f"Your current pickle file has {len(self.annot_pickle)} frames annotated")
 
-
-
     def choose_random_frame(self):
         a = self.non_analyzed_frames.sample()
         a = a["frame"]
         a = int(a)
-        self.loop_video(a,self.interval,self.playback_speed)
+        self.loop_video(a, self.interval, self.playback_speed)
 
-    def loop_video(self, start_frame=80, interval=100, playback_speed = 1):
+    def loop_video(self, start_frame=80, interval=100, playback_speed=1):
         """
         Loops over video with gui. This is where you update or confirm annotations.
         :param start_frame:
@@ -275,25 +285,25 @@ class show_prediction():
         Appends annotation to pandas dataframe
         """
 
-        print(f"You have analyzed {len(self.annot_data)} frames in this session\r",end="")
+        print(f"You have analyzed {len(self.annot_data)} frames in this session\r", end="")
         self.interval = interval
         self.start_frame = (start_frame)
         self.end_frame = self.start_frame + (self.interval)
         self.made_pred = True
         self.playback_speed = playback_speed
         while self.annotating == True:
-            for i in np.arange(0,self.interval):
+            for i in np.arange(0, self.interval):
                 img = self.cap[self.start_frame + i]
                 self.det_pred = self.determine_prediction(self.start_frame, self.end_frame - 1)
                 if self.det_pred == 10:
                     self.loop_video((self.start_frame + self.interval), self.interval)
-                frame_pred = cv2.putText(img, "Current: Frame " + str(self.start_frame + i) +  "   Pred: " +
+                frame_pred = cv2.putText(img, "Current: Frame " + str(self.start_frame + i) + "   Pred: " +
                                          self.BEHAVIOR_LABELS[int(self.det_pred)], (5, 25),
                                          cv2.FONT_HERSHEY_DUPLEX, 0.75,
                                          (60, 76, 231), 1, cv2.LINE_AA)
                 cv2.namedWindow('image')
                 cv2.imshow('image', img)
-                cv2.waitKey(int((1 / (self.interval * self.playback_speed))*1000))
+                cv2.waitKey(int((1 / (self.interval * self.playback_speed)) * 1000))
             else:
                 if self.annotating == True:
                     frame_pred = cv2.putText(img, "Loop Done.", (5, 50),
@@ -339,7 +349,7 @@ class show_prediction():
                         self.loop_video((self.start_frame + self.interval), self.interval, self.playback_speed)
                     elif k & 0xFF == ord('1') or k & 0xFF == ord('2') or k & 0xFF == ord('3') or k & 0xFF == ord(
                             '4') or k & 0xFF == ord('5') or k & 0xFF == ord('6') or k & 0xFF == ord(
-                            '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
+                        '7') or k & 0xFF == ord('8') or k & 0xFF == ord('9'):
                         self.det_pred = int(chr(k))
                         self.update_annotations()
                         self.forward = False
@@ -383,19 +393,20 @@ class show_prediction():
 
     def choose_frame(self):
         beh = input("Enter behavior you would like to find: ")
-        beh_to_num = { "drink": 0,
-                        "eat": 1,
-                        "groom": 2,
-                        "hang": 3,
-                        "sniff": 4,
-                        "rear": 5,
-                        "rest": 6,
-                        "walk": 7,
-                        "eathand":8,
-                        "none": 9}
+        beh_to_num = {"drink": 0,
+                      "eat": 1,
+                      "groom": 2,
+                      "hang": 3,
+                      "sniff": 4,
+                      "rear": 5,
+                      "rest": 6,
+                      "walk": 7,
+                      "eathand": 8,
+                      "none": 9}
 
-        con_data = pd.concat([self.annot_pickle,self.annot_data], sort=True)
-        non_analyzed_frames = pd.concat([self.predictions,con_data,con_data]).drop_duplicates(subset=['frame'],keep=False)
+        con_data = pd.concat([self.annot_pickle, self.annot_data], sort=True)
+        non_analyzed_frames = pd.concat([self.predictions, con_data, con_data]).drop_duplicates(subset=['frame'],
+                                                                                                keep=False)
         beh_exist = non_analyzed_frames.where(non_analyzed_frames['pred'] == beh_to_num[beh])
         beh_exist = beh_exist.dropna()
         print(beh_exist)
@@ -404,7 +415,6 @@ class show_prediction():
         a = int(a)
 
         self.loop_video(a, self.interval, self.playback_speed)
-
 
     def determine_prediction(self, start_frame, stop_frame):
         """
@@ -418,7 +428,8 @@ class show_prediction():
         preds = []
 
         if not self.csv_file:
-            if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data['frame'].values:
+            if start_frame not in self.annot_pickle['frame'].values and start_frame not in self.annot_data[
+                'frame'].values:
                 return 9
             elif self.back == True:
                 a = self.annot_data.loc[self.annot_data['frame'] == start_frame]
@@ -462,13 +473,13 @@ class show_prediction():
         :return:
         pandas data frame with columns [frame, pred]
         """
-        for frame in np.arange(self.start_frame,self.end_frame):
+        for frame in np.arange(self.start_frame, self.end_frame):
             if self.back == False:
                 self.annot_data = self.annot_data.append(
                     {'frame': frame, 'pred': self.BEHAVIOR_LABELS[int(self.det_pred)]}, ignore_index=True)
             else:
-                self.annot_data.loc[self.annot_data['frame'] == frame, 'pred'] = self.BEHAVIOR_LABELS[int(self.det_pred)]
-
+                self.annot_data.loc[self.annot_data['frame'] == frame, 'pred'] = self.BEHAVIOR_LABELS[
+                    int(self.det_pred)]
 
     def save_annotations_as_pickle(self):
         """
@@ -477,24 +488,23 @@ class show_prediction():
         pickle file with columns [frame, pred]
         """
         self.annot_pickle_final = pd.concat([self.annot_pickle, self.annot_data])
-        self.annot_pickle_final.sort_values(by='frame',inplace=True)
-        self.annot_pickle_final.drop_duplicates(subset=['frame'],inplace=True,keep='last')
+        self.annot_pickle_final.sort_values(by='frame', inplace=True)
+        self.annot_pickle_final.drop_duplicates(subset=['frame'], inplace=True, keep='last')
         if self.test_or_train == 'test':
             self.annot_pickle_final.to_pickle(self.pickle_rsync)
             subprocess.run("rsync --progress {} jbecke11@serrep6.clps.brown.edu:{}".format(
                 self.pickle_rsync, self.pickle_path),
-                           shell=True)
+                shell=True)
         else:
             self.annot_pickle_final.to_pickle(self.pickle_rsync)
             subprocess.run("rsync --progress {} jbecke11@serrep6.clps.brown.edu:{}".format(
-                self.pickle_rsync, self.pickle_path ),
-                           shell=True)
+                self.pickle_rsync, self.pickle_path),
+                shell=True)
 
         a = pd.read_pickle(self.pickle_rsync)
         print(a)
 
         self.done_with_video()
-
 
     def done_with_video(self):
         """
@@ -659,15 +669,17 @@ class show_prediction():
                           self.main_path + '/videos_done' + self.video_file[self.video_file.rfind('/'):])
                 sys.exit()
 
-def main():
 
+def main():
     parser = argparse.ArgumentParser(description="Add main path and frame length for video loop")
-    parser.add_argument("-mp", "-main_path", help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
-                                                  "Different experiments can be housed in separate folders under different Annot folder")
+    parser.add_argument("-mp", "-main_path",
+                        help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
+                             "Different experiments can be housed in separate folders under different Annot folder")
     parser.add_argument("-rp", "-rsync_path",
                         help="Directory where you want all files associated with artemis annotations saved. This will create a folder called Annot whcih will hold all files,"
                              "Different experiments can be housed in separate folders under different Annot folder")
-    parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100, help="number of frames to analyze in each loop: default is 100 frames")
+    parser.add_argument("-f", "-frame_length", const=100, type=int, nargs="?", default=100,
+                        help="number of frames to analyze in each loop: default is 100 frames")
     parser.add_argument("-ps", "-playback_speed", const=1, type=float, nargs="?", default=1,
                         help="playback speed of interval. Higher number speeds up playback. Lower number slows playback ")
     args = parser.parse_args()
@@ -675,7 +687,6 @@ def main():
 
 
 if __name__ == "__main__":
-
     mp, rp, f, ps = main()
     rp = rp + "Annot"
     mp = mp + "Annot"
@@ -687,14 +698,11 @@ if __name__ == "__main__":
     artemis.determine_last_frame()
     artemis.loop_video(frame, f, ps)
 
-#1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
-#Work on appending to config.yaml from bootstrap code side!
-#Figure out how to do playback when csv file is present and dsplay pred!
-#add messages for esceptions
-#cut down onf code
+# 1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
+# Work on appending to config.yaml from bootstrap code side!
+# Figure out how to do playback when csv file is present and dsplay pred!
+# add messages for esceptions
+# cut down onf code
 
-#arguents to add for commercialization
-#2. ability to start back up with same configurations as last analysis time (cvs/nocsv, and video)
-
-
-
+# arguents to add for commercialization
+# 2. ability to start back up with same configurations as last analysis time (cvs/nocsv, and video)

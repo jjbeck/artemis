@@ -214,19 +214,9 @@ class show_prediction():
         except:
             pass
 
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eat"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eathand"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "groom"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "drink"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rest"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "hang"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "none"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "walk"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rear"]
-        self.annot_pickle_exp_final = self.annot_pickle_exp_final[self.annot_pickle_exp_final["pred"] != "sniff"]
 
 
-        self.annot_pickle.reset_index()
+
         try:
             self_start = (self.annot_pickle['frame'].iloc[0])
         except:
