@@ -183,14 +183,14 @@ class artemis:
         """
         label_from_key = self.BEHAVIOR_LABELS.get(self.pick_keys.get(int(key_pressed)))
         # Make a dataframe of size 'interval' with one column being range(frame_header, interval),
-        #  other column is label.
+        #  other column is pred.
         frames_labelled = list(range(self.frame_header, self.frame_header + interval))
         data = np.transpose([frames_labelled, [label_from_key] * interval])
-        data_df = pd.DataFrame(data, columns=['frame', 'label'])
+        data_df = pd.DataFrame(data, columns=['frame', 'pred'])
         data_df['frame'] = data_df['frame'].astype('int64')
         # Update the pickle_cache (yet to be saved) with the labelled frames
         self.pickle_cache = self.pickle_cache.append(data_df, ignore_index=True)
-        print(self.pickle_cache)
+
 
         indices_in_usable_labelled = usable_frames[usable_frames['frame'].isin(frames_labelled)].index
         # Drop labelled frames from usable frames after incrementing header.
@@ -274,6 +274,7 @@ class artemis:
         try:
             self.csv_df = pd.read_csv(self.csv_path, encoding=self.encoding, dtype='int64')
         except:
+            print("No predictions available for video.")
             self.csv_df = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
         # If not all frames are labelled, fill the rest with 'N/A'.
         non_labelled_frames = total_frames - len(self.csv_df)

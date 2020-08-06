@@ -126,7 +126,6 @@ class display:
         :param interval: Length of interval.
         :param video: Array of images using pims.
         """
-        print(f'DISPLAY: Playing video at start frame {start}')
         end_frame = min(start + interval, self.max_frame)
         milliseconds_per_frame = round(1000 / fps)  # ms/sec * sec/frame
         # Black image in case no video frames are able to be shown
@@ -147,7 +146,7 @@ class display:
                                      (60, 76, 231), 1, cv2.LINE_AA)
             cv2.namedWindow('image')
             cv2.imshow('image', img)
-            cv2.waitKey(milliseconds_per_frame)
+            cv2.waitKey(milliseconds_per_frame) #change this to include playback speed.
 
         frame_pred = cv2.putText(img, "Loop Done.", (5, 50),
                                  cv2.FONT_HERSHEY_DUPLEX, 0.75,

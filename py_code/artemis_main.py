@@ -1,5 +1,6 @@
 import artemis_annotation
-import pandas as pd
+import artemis_confusion_matrix
+
 
 class artemis:
 
@@ -9,7 +10,6 @@ class artemis:
     def annotate(self, annotation_path):
         a = artemis_annotation.artemis(annotation_path, interval=20, encoding='iso-8859-1')
         video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path = a.organize_files()
-        print(f'Video path: {video_path}')
         final_pickle_path = pickle_path
         final_csv_path = csv_path
         if pickle_rsync_path is not None:
@@ -26,7 +26,8 @@ class artemis:
 
     # def record_video(self):
 
-    # def compute_confusion_matrix(self):
+    def compute_confusion_matrix(self, config_path):
+        conf = artemis_confusion_matrix.confusion_matrix(config_path)
 
     # def bootstrap(self):
 
@@ -34,7 +35,8 @@ class artemis:
 
 
 a = artemis()
-a.annotate('C:/Annot')
+a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
+#a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
 
 """
 Note: CSV Files have the us-ascii charset.

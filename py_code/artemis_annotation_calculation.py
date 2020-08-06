@@ -48,7 +48,6 @@ def mask_keycode(usr_in):
     if usr_in == 27:
         masked = ord('\x1b')
 
-    print(f'Masked: {masked}')
     return masked
 
 
@@ -59,7 +58,6 @@ class metrics:
         self.csv_rsync_path = None
 
     def set_csv_path(self, csv_path):
-        print(f"Metrics. CSV File: {self.csv_path}")
         self.csv_path = csv_path
 
     def create_config(self, config_path):
@@ -80,7 +78,7 @@ class metrics:
             # Default boot round when no config path is found.
             return boot
         # Iterates through yaml data, and gets value for first occurrence of Boot Round
-        return [item.get('Boot Round') for item in config_param][0]
+        return config_param["Boot Round"]
 
     def determine_folder_hierarchy(self, main_path, rsync_path=None):
         if rsync_path is not None:
@@ -104,7 +102,6 @@ class metrics:
 
     def create_file_names(self, video_file, main_path, test_or_train, boot_round, rsync_path=None):
         print(f'Video file: {video_file}')
-        print(f'Main path: {main_path}')
         # video_path = main_path + '/videos_not_done/' + video_file
         video_path = video_file
         # csv_path = main_path + '/csv_not_done/' + video_file[video_file.rfind('/'):video_file.rfind(".")] + ".csv"
