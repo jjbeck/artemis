@@ -24,19 +24,20 @@ class artemis:
         a.annotate_video(usable_df, pickle_path=final_pickle_path, predictions_csv=csv_path)
 
 
-    # def record_video(self):
+    #def record_video(self):
 
     def compute_confusion_matrix(self, config_path):
         conf = artemis_confusion_matrix.confusion_matrix(config_path)
+        conf.organize_files()
 
-    # def bootstrap(self):
+    #def bootstrap(self):
 
-    # def run_inference(self):
+    #def run_inference(self):
 
 
 a = artemis()
-a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
-#a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
+#a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
+a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
 
 """
 Note: CSV Files have the us-ascii charset.

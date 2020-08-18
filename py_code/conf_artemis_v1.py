@@ -107,7 +107,7 @@ class conf_matrix_artemis():
             csv_data_for_pkl = csv_.loc[csv_['frame'].isin(pkl['frame'])]
             y_pred.append(csv_data_for_pkl['pred'])
             y_true.append(pkl['pred'])
-
+        print(y_pred)
         y_pred = pd.concat(y_pred)
         y_true = pd.concat(y_true)
         return y_pred, y_true
