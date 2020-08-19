@@ -103,9 +103,6 @@ class calculate_confusion():
             y_pred_con = []
             y_true_con = []
 
-
-
-
         return y_pred, y_true
 
     def compute_confusion_matrix(self, y_pred, y_true):
@@ -126,14 +123,12 @@ class calculate_confusion():
                                        normalize='true')
 
             conf_matrix_all[boot] = np.round(conf_matrix_all[boot], decimals=2)
+
         print(conf_matrix_all)
-
-
 
         return conf_matrix_all
 
-
-    def return_old_new(self, version, csv=None, pkl=None):
+    def return_old_new(self, dict_of_overlap):
         """
         :param version: string of 'old' or 'new'. Raises exception if not either 'old' or 'new'.
         If string is 'old', returns filenames which contain 'old' as 3rd slot delineated by underscores, after
@@ -143,29 +138,15 @@ class calculate_confusion():
         :return: Tuple of (csv, pkl), each being list of strings, each element corresponding to old/new file.
                 Includes file path in each element.
         """
-        csv_files = csv
-        pkl_files = pkl
+        old_dict_of_overlap = collections.defaultdict(list)
+        new_dict_of_overlap = collections.defaultdict(list)
 
-        if csv is None or pkl is None:
-            csv_files = self.analyze_csv
-            pkl_files = self.analyze_pickle
+        for boot in dict_of_overlap:
+            for video in dict_of_overlap[boot]:
+                if 'old' in video:
+                    old_dict_of_overlap[boot].append(video)
+                elif 'new' in video:
+                    new_dict_of_overlap[boot].append(video)
 
-        # TODO: Currently, each csv/pkl file in function arguments must contain self.csv_path or self.pickle_path
-        #  respectively for this function to work. This is because we first clean up the strings by removing the
-        #  file path prefix. This needs to be changed so that we split on some character that delineates the end
-        #  of the path prefix and the start of the actual file name.
-
-        csv_data = [csv.replace(self.prediction_path, '') for csv in csv_files]
-        pkl_data = [pkl.replace(self.annotation_path, '') for pkl in pkl_files]
-
-        if version == 'old':
-            old_csv = [self.prediction_path + csv for csv in csv_data if csv.rsplit("_")[2] == 'old']
-            old_pkl = [self.annotation_path + pkl for pkl in pkl_data if pkl.rsplit("_")[2] == 'old']
-            return old_csv, old_pkl
-        if version == 'new':
-            new_csv = [self.prediction_path + csv for csv in csv_data if csv.rsplit("_")[2] == 'new']
-            new_pkl = [self.annotation_path + pkl for pkl in pkl_data if pkl.rsplit("_")[2] == 'new']
-            return new_csv, new_pkl
-
-        raise Exception('Error: version must be \'old\' or \'new\'.')
+        return old_dict_of_overlap, new_dict_of_overlap
 
