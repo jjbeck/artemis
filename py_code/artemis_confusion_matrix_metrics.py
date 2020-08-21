@@ -55,19 +55,25 @@ class calculate_confusion():
         dict_of_predictions = collections.defaultdict(list)
         dict_of_annotations = []
         dict_of_overlap = collections.defaultdict(list)
+
         try:
             for key in self.prediction_paths:
                 for csv in glob.glob(self.prediction_paths[key] + '*.csv'):
-                    dict_of_predictions[key].append(csv.replace(self.prediction_paths[key],'').replace('.csv',''))
+                    removed_double_backslash = csv.replace("\\", "/")
+                    raw_name = removed_double_backslash.replace(self.prediction_paths[key], '').replace('.csv', '')
+                    dict_of_predictions[key].append(raw_name)
         except:
             print('No CSV file in directory. Transfer some and run again')
         # Suffix for rebuilding pickle name.
         pickle_suffix = ''
         try:
             for picklefile in glob.glob(self.annotation_path + '*.p'):
-                dict_of_annotations.append(picklefile.replace(self.annotation_path,'').replace('_test.p',''))
+                removed_double_backslash = picklefile.replace("\\", "/")
+                raw_pkl_name = removed_double_backslash.replace(self.annotation_path, "").replace("_test.p", "")
+                dict_of_annotations.append(raw_pkl_name)
         except:
             print('No Pickle file in directory. Transfer some and run again')
+
         for key in dict_of_predictions:
             for pred_file in dict_of_predictions[key]:
                 if pred_file in dict_of_annotations:
@@ -124,7 +130,7 @@ class calculate_confusion():
 
             conf_matrix_all[boot] = np.round(conf_matrix_all[boot], decimals=2)
 
-        print(conf_matrix_all)
+        print(f'Confusion matrix: {conf_matrix_all}')
 
         return conf_matrix_all
 
