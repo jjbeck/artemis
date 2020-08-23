@@ -288,6 +288,9 @@ class artemis:
 
         self.display.setup_video_properties(video=self.cap, csv_df=self.csv_df)
         # Read pickle file
+        if not os.path.exists(pickle_path):
+            open(pickle_path, "w+")
+
         if os.path.getsize(pickle_path) > 0:
             self.pickle_data = pd.read_pickle(pickle_path)
         else:
