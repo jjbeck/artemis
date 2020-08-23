@@ -186,12 +186,10 @@ class artemis:
         #  other column is pred.
         frames_labelled = list(range(self.frame_header, self.frame_header + interval))
         data = np.transpose([frames_labelled, [label_from_key] * interval])
-        data_df = pd.DataFrame(data, columns=['frame', 'pred'])
+        data_df = pd.DataFrame(data, columns=['frame', 'label'])
         data_df['frame'] = data_df['frame'].astype('int64')
         # Update the pickle_cache (yet to be saved) with the labelled frames
         self.pickle_cache = self.pickle_cache.append(data_df, ignore_index=True)
-
-
         indices_in_usable_labelled = usable_frames[usable_frames['frame'].isin(frames_labelled)].index
         # Drop labelled frames from usable frames after incrementing header.
         if indices_in_usable_labelled.size != 0:
