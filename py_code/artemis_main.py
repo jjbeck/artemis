@@ -36,8 +36,8 @@ class artemis:
 
 
 a = artemis()
-#a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
-a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
+a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
+#a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
 
 """
 Note: CSV Files have the us-ascii charset.
