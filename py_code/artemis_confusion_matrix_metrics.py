@@ -49,7 +49,7 @@ class calculate_confusion():
 
 
     def check_load_csv(self):
-        # TODO: First iterate through pkl test files. If there is a matching csv file, append both to respectile
+        # TODO: First iterate through pkl test files. If there is a matching csv file, append both to respective
         #  list. This will guarantee that element at each index in list corresponds to respective element at index in
         #  other list.
         dict_of_predictions = collections.defaultdict(list)
@@ -136,13 +136,8 @@ class calculate_confusion():
 
     def return_old_new(self, dict_of_overlap):
         """
-        :param version: string of 'old' or 'new'. Raises exception if not either 'old' or 'new'.
-        If string is 'old', returns filenames which contain 'old' as 3rd slot delineated by underscores, after
-        file path has been cleaned from file path.
-        :param csv: List of strings representing csv files to filter by version.
-        :param pkl: List of strings representing pkl files to filter by version.
-        :return: Tuple of (csv, pkl), each being list of strings, each element corresponding to old/new file.
-                Includes file path in each element.
+        :param dict_of_overlap:
+        :return two dictionaries of boot: video_string for old and new videos
         """
         old_dict_of_overlap = collections.defaultdict(list)
         new_dict_of_overlap = collections.defaultdict(list)
