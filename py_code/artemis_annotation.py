@@ -25,7 +25,7 @@ def clean_filename(path):
     # Removes all file structure prefixes
     to_return = path[path.rfind('/') + 1:]
     # Removes all _boot1.p etc.
-    to_return = to_return[:to_return.rfind('_boot')]
+    to_return = to_return[:to_return.rfind('_')]
     return to_return
 
 
@@ -287,7 +287,7 @@ class artemis:
 
         # For each directory, if file contains cleaned_name, add file path to to list.
         for pickle_path in glob.glob(test_path + '*.p'):
-            suffix = pickle_path[pickle_path.rfind('_boot'):]
+            suffix = pickle_path[pickle_path.rfind('_test'):]
             if cleaned_name in pickle_path:
                 pickle_jar.append(test_path + cleaned_name + suffix)
 
@@ -312,7 +312,8 @@ class artemis:
         self.metrics.set_csv_path(final_csv_path)
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
         # List of paths to all pickle files for a certain video, in both test and train datasets.
-        all_pickles = self.get_all_pickles_for_video(clean_filename(final_pickle_path))
+        clean_name = clean_filename(final_pickle_path)
+        all_pickles = self.get_all_pickles_for_video(clean_name)
         # Total number of frames. This will be used to get the complement of labelled frames & unlabelled.
         df_total_frames = pd.Series(range(0, total_frames + 1))
         # Make a massive dataframe out of all the pickle files (test and train) for a certain pickle file
