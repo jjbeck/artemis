@@ -117,6 +117,20 @@ class display:
         self.max_frame = len(video)
         self.max_labelled = len(self.csv)
 
+    def get_prediction_mode_at_frame(self, csv_df, frame, interval):
+        """
+        :param csv_df: a csv dataframe of predictions ['frame', 'pred']
+        :param frame: a starting frame
+        :param interval: an interval of frames
+        :return: a string denoting behavior that occurs most over the interval starting at frames.
+        """
+        # Note: If frame + interval exceeds the dataframe, it will only return the frames that are
+        #  there.
+        prediction_interval = self.csv.iloc[frame:frame+interval]['pred']
+        prediction_number = prediction_interval.mode()[0]
+        prediction = self.BEHAVIOR_LABELS[prediction_number]
+        return prediction
+
     def video_loop(self, video, start, csv_path, interval=100, fps=30):
         """
         Loops over interval-many frames in the video
@@ -132,11 +146,10 @@ class display:
         img = np.full((640, 900, 3), 0, dtype=np.uint8)
         for i in range(start, end_frame):
             img = video[i]
-            prediction_number = self.csv.iloc[i]['pred']
             # Prediction is N/A by default. If prediction exists (index is within number of labelled frames),
             #  prediction string is changed.
             if i < self.max_labelled:
-                prediction = self.BEHAVIOR_LABELS[prediction_number]
+                prediction = self.get_prediction_mode_at_frame(self.csv, frame=i, interval=interval)
             else:
                 prediction = "N/A"
 

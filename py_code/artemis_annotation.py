@@ -311,9 +311,11 @@ class artemis:
         # Update CSV Path to metrics.
         self.metrics.set_csv_path(final_csv_path)
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
+
         # List of paths to all pickle files for a certain video, in both test and train datasets.
         clean_name = clean_filename(final_pickle_path)
         all_pickles = self.get_all_pickles_for_video(clean_name)
+
         # Total number of frames. This will be used to get the complement of labelled frames & unlabelled.
         df_total_frames = pd.Series(range(0, total_frames + 1))
         # Make a massive dataframe out of all the pickle files (test and train) for a certain pickle file
@@ -321,12 +323,15 @@ class artemis:
         for pickle_path in all_pickles:
             df = artemis_read_pickle(pickle_path)
             all_frames_in_pkl = pd.concat([all_frames_in_pkl, df])
+
         # Drop duplicates so we get only labelled frames
         all_frames_in_pkl = all_frames_in_pkl.drop_duplicates(keep=False).reset_index()
+
         # Find all frames not in all_frames_in_pkl AKA never labelled, in train or test.
         not_analyzed = pd.concat([all_frames_in_pkl['frame'], df_total_frames]).drop_duplicates(
             keep=False).reset_index()
         not_analyzed = not_analyzed.rename(columns={'index': 'frame'})
+
         return not_analyzed
 
     def load_csv_data(self, video_path, csv_path):
