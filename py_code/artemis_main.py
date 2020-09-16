@@ -3,6 +3,9 @@ import artemis_confusion_matrix
 import yaml
 import artemis_annotation_calculation
 
+ANNOTATION_INTERVAL = 30
+ANNOTATION_FPS = 30
+
 
 class artemis:
 
@@ -10,7 +13,7 @@ class artemis:
         print("artemis loaded")
 
     def annotate(self, annotation_path):
-        annotator = artemis_annotation.artemis(annotation_path, interval=30, encoding='iso-8859-1')
+        annotator = artemis_annotation.artemis(annotation_path, interval=ANNOTATION_INTERVAL, encoding='iso-8859-1')
 
         video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path = annotator.organize_files()
         final_pickle_path = pickle_path
@@ -26,7 +29,7 @@ class artemis:
         #  Loads data -> Usable dataframe -> Annotate Video always.
         annotator.load_data(video_path, csv_path=csv_path, pickle_path=pickle_path)
         usable_df = annotator.get_usable_dataframe(video_path, final_pickle_path, final_csv_path)
-        annotator.annotate_video(usable_df, pickle_path=final_pickle_path, predictions_csv=csv_path)
+        annotator.annotate_video(usable_df, pickle_path=final_pickle_path, predictions_csv=csv_path, fps=ANNOTATION_FPS)
 
     # def record_video(self):
 

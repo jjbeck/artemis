@@ -401,7 +401,7 @@ class artemis:
 
         if interval is None:
             interval = self.interval
-
+        print(f'FPS: {fps}')
         predictions = self.csv_df
         self.frames_labelled_in_session = len(usable_frames)
         self.display.intro()

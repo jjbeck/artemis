@@ -159,7 +159,7 @@ class display:
                                      (60, 76, 231), 1, cv2.LINE_AA)
             cv2.namedWindow('image')
             cv2.imshow('image', img)
-            cv2.waitKey(milliseconds_per_frame) #change this to include playback speed.
+            cv2.waitKey(milliseconds_per_frame) # Change this to include playback speed.
 
         frame_pred = cv2.putText(img, "Loop Done.", (5, 50),
                                  cv2.FONT_HERSHEY_DUPLEX, 0.75,
