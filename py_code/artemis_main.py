@@ -42,10 +42,7 @@ class artemis:
     # def run_inference(self):
 
 
-a = artemis()
-#a.annotate('C:/Annot')
 
-a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
 
 """
 Note: CSV Files have the us-ascii charset.
