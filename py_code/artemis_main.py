@@ -33,7 +33,7 @@ class artemis:
 
     # def record_video(self):
 
-    def compute_confusion_matrix(self, config_path):
+    def compute_confusion_matrix(self,config_path):
         conf = artemis_confusion_matrix.confusion_matrix(config_path)
         conf.organize_files()
 
@@ -43,9 +43,9 @@ class artemis:
 
 
 a = artemis()
-a.annotate('C:/Annot')
+#a.annotate('C:/Annot')
 
-# a.compute_confusion_matrix('C:/Annot/config.yaml')
+a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
 
 """
 Note: CSV Files have the us-ascii charset.
