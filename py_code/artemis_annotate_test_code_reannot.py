@@ -210,16 +210,9 @@ class show_prediction():
         except:
             pass
 
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eat"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "eathand"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "sniff"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "drink"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rest"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "hang"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "none"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "walk"]
-        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] != "rear"]
-        self.annot_pickle_leftover = self.annot_pickle_leftover[self.annot_pickle_leftover["pred"] != "groom"]
+        self.annot_pickle = self.annot_pickle[self.annot_pickle['pred'] == "sniff"]
+
+        self.annot_pickle_leftover = self.annot_pickle_leftover[self.annot_pickle_leftover["pred"] != "sniff"]
 
 
         self.annot_pickle.reset_index()
@@ -524,7 +517,7 @@ def main():
 
 
 if __name__ == "__main__":
-
+    """
     mp, f, ps = main()
     mp = mp + "Annot"
     if os.path.exists(mp + "/config.yaml"):
@@ -540,10 +533,11 @@ if __name__ == "__main__":
                 sys.exit(1)
     else:
         artemis = show_prediction(mp, 1,True)
-
+    """
+    artemis = show_prediction('/home/jordan/Desktop/andrew_nih/Annot',1, False)
     artemis.show_intro()
     artemis.load_video_organize_dir()
-    artemis.loop_video(artemis.determine_last_frame(), f, ps)
+    artemis.loop_video(artemis.determine_last_frame(), 30, 1)
 
 #1. DOUBLE CHECK FILES ON ARTEMIS SIDE IN CCV (LAST 3 SYNCED) AND SYNC 2 THAT WERE JUST ANALYZED (inference test and results)
 #Work on appending to config.yaml from bootstrap code side!

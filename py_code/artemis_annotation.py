@@ -1,5 +1,5 @@
 import pickle
-
+import glob
 import cv2
 import pandas as pd
 import artemis_annotation_display
@@ -10,6 +10,44 @@ import os
 import pims
 import numpy as np
 import traceback
+
+
+def clean_filename(path):
+    """
+    Given a path to a pickle filename, cleans it and returns just the experiment name.
+    e.g.:
+    C:/Annot/pickle_files/train/Alc_B-W1_old_video_2019Y_04M_08D_04h_54m_38s_cam_17202345-0000_boot1.p
+    ->
+    Alc_B-W1_old_video_2019Y_04M_08D_04h_54m_38s_cam_17202345-0000
+    :param path:
+    :return:
+    """
+    # Removes all file structure prefixes
+    to_return = path[path.rfind('/') + 1:]
+    # Removes all _boot1.p etc.
+    to_return = to_return[:to_return.rfind('_')]
+    return to_return
+
+
+def artemis_read_pickle(pickle_path):
+    """
+    Reads a pickle file from pickle path into dataframe and returns it
+    :param pickle_path: Path to pickle file
+    :return: Dataframe with following columns:
+            [frame: int64, label: str]
+    """
+    pickle_data = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
+    if not os.path.exists(pickle_path):
+        open(pickle_path, "w+")
+    elif os.path.getsize(pickle_path) > 0:
+        pickle_data = pd.read_pickle(pickle_path)
+    else:
+        print(f"Pickle path {pickle_path} empty.")
+    pickle_data.columns = ['frame', 'pred']
+    # Set type of frame to int64 so that duplicates can be detected.
+    type_replaced = pickle_data['frame'].astype(dtype='int64')
+    pickle_data.assign(frame=type_replaced)
+    return pickle_data
 
 
 class artemis:
@@ -36,8 +74,8 @@ class artemis:
         self.csv_path = None
         self.csv_df = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
         # Pickle dataframe that gets reset after every session. Is used to save into pickle files.
-        self.pickle_data = pd.DataFrame(columns=['frame', 'label'], dtype='int64')
-        self.pickle_cache = pd.DataFrame(columns=['frame', 'label'], dtype='int64')
+        self.pickle_data = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
+        self.pickle_cache = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
         # Set to length of frames that have not yet been labelled.
         self.frames_labelled_in_session = 0
         # Set main path to files
@@ -63,6 +101,7 @@ class artemis:
         }
         self.handle_input = {
             # utility fn
+            # TODO: This ugly as hell. Pls change.
             ord('y'): self.letter,
             ord(' '): self.letter,
             ord('Q'): self.letter,
@@ -190,8 +229,6 @@ class artemis:
         data_df['frame'] = data_df['frame'].astype('int64')
         # Update the pickle_cache (yet to be saved) with the labelled frames
         self.pickle_cache = self.pickle_cache.append(data_df, ignore_index=True)
-
-
         indices_in_usable_labelled = usable_frames[usable_frames['frame'].isin(frames_labelled)].index
         # Drop labelled frames from usable frames after incrementing header.
         if indices_in_usable_labelled.size != 0:
@@ -218,6 +255,7 @@ class artemis:
                 print("No videos in directory. Add videos and re-run artemis_annotation")
         else:
             video_file, test_or_train = self.display.choose_local_file(self.main_path + "/videos_not_done/")
+            self.dataset_test_train = test_or_train
             boot_round = self.metrics.calculate_config(self.main_path + '/config.yaml')
 
         video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path = self.metrics.create_file_names(
@@ -232,6 +270,34 @@ class artemis:
 
         return video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path
 
+    def get_all_pickles_for_video(self, cleaned_name):
+        """
+        Given a clean video name (clean as in, no '_boot' suffix, no path prefix) gets a series of frames
+        not featured in either.
+        :param cleaned_name:
+        :return:
+        """
+
+        # List that contains all the paths to pickle files for a pickle file name.
+        pickle_jar = []
+
+        # Get train and test paths
+        train_path = self.main_path + '/pickle_files/train/'
+        test_path = self.main_path + '/pickle_files/test/'
+
+        # For each directory, if file contains cleaned_name, add file path to to list.
+        for pickle_path in glob.glob(test_path + '*.p'):
+            suffix = pickle_path[pickle_path.rfind('_test'):]
+            if cleaned_name in pickle_path:
+                pickle_jar.append(test_path + cleaned_name + suffix)
+
+        for pickle_path in glob.glob(train_path + '*.p'):
+            suffix = pickle_path[pickle_path.rfind('_boot'):]
+            if cleaned_name in pickle_path:
+                pickle_jar.append(train_path + cleaned_name + suffix)
+
+        return pickle_jar
+
     def get_usable_dataframe(self, video_path, final_pickle_path, final_csv_path=None):
         """
         Gets the frames that are not yet labelled by looking through the pickle files.
@@ -239,43 +305,52 @@ class artemis:
         :param video_path: Path to video to be labelled.
         :param final_pickle_path: Path or rsync path to pickle file for video.
         :param final_csv_path: Path or rsync path to csv prediction for video.
-        :return: Data frame ['frame', 'label'] of frames that have not been labelled.
+        :return: Data frame ['frame', 'pred'] of frames that have not been labelled.
         """
-
-        # Set type of frame to int64 so that duplicates can be detected.
-        type_replaced = self.pickle_data['frame'].astype(dtype='int64')
-        self.pickle_data = self.pickle_data.assign(frame=type_replaced)
 
         # Update CSV Path to metrics.
         self.metrics.set_csv_path(final_csv_path)
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
 
-        # Total number of frames
-        df_total_frames = pd.Series(range(0, total_frames + 1))
+        # List of paths to all pickle files for a certain video, in both test and train datasets.
+        clean_name = clean_filename(final_pickle_path)
+        all_pickles = self.get_all_pickles_for_video(clean_name)
 
-        # Find frames that have yet been annotated.
-        not_analyzed = pd.concat([self.pickle_data['frame'], df_total_frames]).drop_duplicates(keep=False).reset_index()
+        # Total number of frames. This will be used to get the complement of labelled frames & unlabelled.
+        df_total_frames = pd.Series(range(0, total_frames + 1))
+        # Make a massive dataframe out of all the pickle files (test and train) for a certain pickle file
+        all_frames_in_pkl = pd.DataFrame()
+        for pickle_path in all_pickles:
+            df = artemis_read_pickle(pickle_path)
+            all_frames_in_pkl = pd.concat([all_frames_in_pkl, df])
+
+        # Drop duplicates so we get only labelled frames
+        all_frames_in_pkl = all_frames_in_pkl.drop_duplicates(keep=False).reset_index()
+
+        # Find all frames not in all_frames_in_pkl AKA never labelled, in train or test.
+        not_analyzed = pd.concat([all_frames_in_pkl['frame'], df_total_frames]).drop_duplicates(
+            keep=False).reset_index()
         not_analyzed = not_analyzed.rename(columns={'index': 'frame'})
+
         return not_analyzed
 
-    def load_data(self, video_path, pickle_path, csv_path):
+    def load_csv_data(self, video_path, csv_path):
         """
-        Loads video, pickle file, csv prediction file into attribute variables.
-        :param csv_path: Path to csv file containing predictions.
-        :param pickle_path: Path to pickle file containing labels.
-        :param video_path: Path to video.
-        """
-        self.cap = pims.PyAVReaderTimed(video_path)
 
+        :param video_path:
+        :param csv_path:
+        :return:
+        """
+        self.csv_path = csv_path
         total_frames = artemis_annotation_calculation.calculate_frames(video_path)
         # Save dataframe of predictions as attribute, otherwise fill it with 'N/A' entries.
-        self.csv_path = csv_path
         # This try-catch statement tries to read from an existing csv file, otherwise makes a default dataframe.
         try:
             self.csv_df = pd.read_csv(self.csv_path, encoding=self.encoding, dtype='int64')
         except:
             print("No predictions available for video.")
             self.csv_df = pd.DataFrame(columns=['frame', 'pred'], dtype='int64')
+
         # If not all frames are labelled, fill the rest with 'N/A'.
         non_labelled_frames = total_frames - len(self.csv_df)
         non_labelled_frames_df = pd.Series(range(1, non_labelled_frames + 1))
@@ -286,13 +361,31 @@ class artemis:
             self.csv_df.columns = ['frame', 'pred']
             self.csv_df = self.csv_df.append(default_data_df)
 
+    def load_data(self, video_path, pickle_path, csv_path):
+        """
+        Loads video, pickle file, csv prediction file into attribute variables.
+        :param csv_path: Path to csv file containing predictions.
+        :param pickle_path: Path to pickle file containing labels.
+        :param video_path: Path to video.
+        """
+        # Load video.
+        self.cap = pims.PyAVReaderTimed(video_path)
+        self.load_csv_data(video_path, csv_path)
+        # Note: This has to be after load_csv_data, because it uses csv_df, which is not initialized until load_csv_data
         self.display.setup_video_properties(video=self.cap, csv_df=self.csv_df)
-        # Read pickle file
-        if os.path.getsize(pickle_path) > 0:
-            self.pickle_data = pd.read_pickle(pickle_path)
-        else:
-            print(f"Pickle path {pickle_path} empty.")
-        self.pickle_data.columns = ['frame', 'label']
+        # Load CSV
+        # Load pickle files.
+        self.load_pkl_data(pickle_path)
+        return
+
+    def load_pkl_data(self, pickle_path):
+        """
+        Loads pickle data from train OR test source.
+        :param pickle_path: Path to pickle file
+        :return:
+        """
+        # Loads pickle data to attribute
+        self.pickle_data = artemis_read_pickle(pickle_path)
         return
 
     def annotate_video(self, usable_frames, pickle_path, predictions_csv, interval=None, fps=30):
@@ -308,7 +401,7 @@ class artemis:
 
         if interval is None:
             interval = self.interval
-
+        print(f'FPS: {fps}')
         predictions = self.csv_df
         self.frames_labelled_in_session = len(usable_frames)
         self.display.intro()
@@ -366,7 +459,7 @@ class artemis:
         tmp_header = self.frame_header
         new_header = self.frame_header + interval
 
-        frame_at_new_header = usable_frames[usable_frames['frame'] == (new_header)]
+        frame_at_new_header = usable_frames[usable_frames['frame'] == new_header]
 
         # If the new header does not have a frame in usable frames, we take use the closest frame.
         if frame_at_new_header.empty:
@@ -404,7 +497,6 @@ class artemis:
             print("Not 's' or 'm', not saving progress.")
             return
 
-        # Copy frame column and type-cast to int. It is duplicated to prevent propagation to other pandas objects
         # Copy frame column and type-cast to int. It is duplicated to prevent propagation to other pandas objects
         type_replaced = self.pickle_data['frame'].astype(dtype='int64')
         self.pickle_data = self.pickle_data.assign(frame=type_replaced)
