@@ -43,12 +43,8 @@ class artemis:
 
 
 
-<<<<<<< HEAD
 a = artemis()
-a.annotate('/home/jordan/Desktop/andrew_nih/Annot')
-#a.compute_confusion_matrix('/home/jordan/Desktop/andrew_nih/Annot/config.yaml')
-=======
->>>>>>> sami_heatmap
+a.compute_confusion_matrix("/home/jordan/Desktop/andrew_nih/Annot/config.yaml")
 
 """
 Note: CSV Files have the us-ascii charset.
