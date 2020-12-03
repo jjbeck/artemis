@@ -240,7 +240,16 @@ class artemis:
 
         file_org = self.metrics.determine_folder_hierarchy(self.main_path, rsync_path=self.rsync_path)
         if not file_org:
-            sys.exit('Error: Directories not organized properly. See documentation for further help')
+
+            path_to_main = self.main_path.replace("Annot/", "")
+            os.mkdir(path_to_main + "Annot/")
+            os.mkdir(path_to_main + "Annot/videos_not_done")
+            os.mkdir(path_to_main + "Annot/csv_not_done")
+            os.mkdir(path_to_main + "Annot/pickle_files")
+            os.mkdir(path_to_main + "Annot/pickle_files/test")
+            os.mkdir(path_to_main + "Annot/pickle_files/train")
+            sys.exit('Error: Directories not organized properly. Automatically made directories'
+                     'in path. Please add videos to "videos_not_done" folder and re-run. See documentation for further help')
 
         video_files = self.metrics.check_video_files(rsync_path=self.rsync_path)
         if video_files is not None:

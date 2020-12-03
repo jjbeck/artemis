@@ -18,8 +18,7 @@ class artemis:
         video_path, pickle_path, pickle_rsync_path, csv_path, csv_rsync_path = annotator.organize_files()
         final_pickle_path = pickle_path
         final_csv_path = csv_path
-        print(final_pickle_path)
-        print(final_csv_path)
+
         if pickle_rsync_path is not None:
             final_pickle_path = pickle_rsync_path
 
@@ -43,8 +42,8 @@ class artemis:
 
 
 
-a = artemis()
-a.compute_confusion_matrix("/home/jordan/Desktop/andrew_nih/Annot/config.yaml")
+#a = artemis()
+#a.annotate("/home/jordan/Desktop/andrew_nih/Annot/")
 
 """
 Note: CSV Files have the us-ascii charset.
